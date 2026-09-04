@@ -150,13 +150,13 @@
  
             function drawMovingDots(list, color) {
                 var speedInput = document.getElementById("jjwm-speed");
-                var speed = speedInput ? parseFloat(speedInput.value) || 18 : 18;
+                var manualSpeed = speedInput ? parseFloat(speedInput.value) || 18 : 18;
                 var now = Date.now();
-                var dotR = lineWidth * 1.8;
+                var dotR = lineWidth * 1.15;
  
                 ctx.fillStyle = color;
                 ctx.shadowColor = color;
-                ctx.shadowBlur = dotR * 1.2;
+                ctx.shadowBlur = dotR * 0.8;
  
                 list.forEach(function (l) {
                     if (!l.arrival) return;
@@ -164,6 +164,7 @@
                         (l.to.x - l.from.x) * (l.to.x - l.from.x) +
                         (l.to.y - l.from.y) * (l.to.y - l.from.y)
                     );
+                    var speed = l.speedOverride || manualSpeed;
                     var totalMs = distFields * speed * 60000;
                     if (totalMs <= 0) return;
                     var startMs = l.arrival - totalMs;
@@ -209,6 +210,52 @@
     try { myId = window.game_data && game_data.player && String(game_data.player.id); } catch (e) {}
  
     function fetchText(url) { return fetch(url).then(function (r) { return r.text(); }); }
+ 
+    var BASE_SPEEDS = { spear: 18, sword: 22, axe: 18, archer: 18, spy: 9, light: 10, marcher: 10, heavy: 11, ram: 30, catapult: 30, knight: 10, snob: 35 };
+    var worldConfig = { speed: 1, unitSpeed: 1 };
+ 
+    function fetchWorldConfig() {
+        return fetch("/interface.php?func=get_config").then(function (r) { return r.text(); }).then(function (xml) {
+            var doc = new DOMParser().parseFromString(xml, "text/xml");
+            var speedEl = doc.querySelector("speed");
+            var unitSpeedEl = doc.querySelector("unit_speed");
+            worldConfig.speed = speedEl ? parseFloat(speedEl.textContent) || 1 : 1;
+            worldConfig.unitSpeed = unitSpeedEl ? parseFloat(unitSpeedEl.textContent) || 1 : 1;
+        }).catch(function () {});
+    }
+ 
+    function mapUnitColumns(table) {
+        var map = {};
+        if (!table) return map;
+        var headerRow = table.querySelector("thead tr") || table.querySelector("tr:first-child");
+        if (!headerRow) return map;
+        var cells = headerRow.querySelectorAll("th, td");
+        var unitKeys = ["spear", "sword", "axe", "archer", "spy", "light", "marcher", "heavy", "ram", "catapult", "knight", "snob", "militia"];
+        cells.forEach(function (cell, i) {
+            var img = cell.querySelector("img");
+            var unitEl = cell.querySelector("[data-unit]");
+            var src = img ? (img.getAttribute("src") || "") : "";
+            var dataUnit = unitEl ? unitEl.getAttribute("data-unit") : (cell.getAttribute("data-unit") || "");
+            unitKeys.forEach(function (key) {
+                if (dataUnit === key || new RegExp("unit_" + key, "i").test(src)) map[i] = key;
+            });
+        });
+        return map;
+    }
+ 
+    function slowestSpeedForRow(cells, unitColMap) {
+        var slowestBase = null;
+        Object.keys(unitColMap).forEach(function (idxStr) {
+            var idx = parseInt(idxStr, 10);
+            if (!cells[idx]) return;
+            var count = parseInt((cells[idx].textContent || "0").replace(/\D/g, ""), 10) || 0;
+            if (count <= 0) return;
+            var base = BASE_SPEEDS[unitColMap[idx]];
+            if (base && (slowestBase === null || base > slowestBase)) slowestBase = base;
+        });
+        if (!slowestBase) return null;
+        return slowestBase / (worldConfig.speed * worldConfig.unitSpeed);
+    }
  
     function fetchDiplomacy() {
         var villageId = "0";
@@ -357,10 +404,12 @@
  
         statusEl.textContent = "🔎 Carregando comandos enviados/retornando...";
  
+        fetchWorldConfig().then(function () {
         fetch(combinedUrl, { credentials: "same-origin" }).then(function (r) { return r.text(); }).then(function (html) {
             var doc = new DOMParser().parseFromString(html, "text/html");
             var table = findBiggestTable(doc);
             var atkOut = [], supOut = [], supBack = [];
+            var unitColMap = mapUnitColumns(table);
  
             if (table) {
                 var rows = table.querySelectorAll("tbody tr");
@@ -373,13 +422,14 @@
                     if (!target || !origin) return;
  
                     var arrival = parseArrival(cells[2] ? cells[2].textContent : "");
+                    var autoSpeed = slowestSpeedForRow(cells, unitColMap);
  
                     if (/^Ataque a/i.test(desc)) {
-                        atkOut.push({ from: origin, to: target, arrival: arrival });
+                        atkOut.push({ from: origin, to: target, arrival: arrival, speedOverride: autoSpeed });
                     } else if (/^Apoio a/i.test(desc)) {
-                        supOut.push({ from: origin, to: target, arrival: arrival });
+                        supOut.push({ from: origin, to: target, arrival: arrival, speedOverride: autoSpeed });
                     } else if (/^Retorno de/i.test(desc)) {
-                        supBack.push({ from: target, to: origin, arrival: arrival });
+                        supBack.push({ from: target, to: origin, arrival: arrival, speedOverride: autoSpeed });
                     }
                 });
             }
@@ -421,10 +471,11 @@
                     supOut.length + " apoio indo, " + supBack.length + " apoio/retorno voltando, " + supIn.length + " apoio chegando.";
             }).catch(function (e) { statusEl.textContent = "❌ Erro ao carregar recebidos: " + e.message; });
         }).catch(function (e) { statusEl.textContent = "❌ Erro ao carregar comandos: " + e.message; });
+        });
     }
  
     document.getElementById("jjwm-load-commands").onclick = loadCommands;
-    ["jjwm-cb-atk-out", "jjwm-cb-atk-in", "jjwm-cb-sup-out", "jjwm-cb-sup-back"].forEach(function (id) {
+    ["jjwm-cb-atk-out", "jjwm-cb-atk-in", "jjwm-cb-sup-out", "jjwm-cb-sup-back", "jjwm-cb-sup-in"].forEach(function (id) {
         document.getElementById(id).addEventListener("change", draw);
     });
  
