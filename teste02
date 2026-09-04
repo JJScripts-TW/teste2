@@ -148,15 +148,15 @@
                 ctx.globalAlpha = 1;
             }
  
-            function drawMovingDots(list) {
+            function drawMovingDots(list, color) {
                 var speedInput = document.getElementById("jjwm-speed");
                 var speed = speedInput ? parseFloat(speedInput.value) || 18 : 18;
                 var now = Date.now();
-                var dotR = Math.max(1.5, state.scale * 1.1);
+                var dotR = lineWidth * 1.8;
  
-                ctx.fillStyle = "#ffe066";
-                ctx.shadowColor = "#ffe066";
-                ctx.shadowBlur = dotR * 2;
+                ctx.fillStyle = color;
+                ctx.shadowColor = color;
+                ctx.shadowBlur = dotR * 1.2;
  
                 list.forEach(function (l) {
                     if (!l.arrival) return;
@@ -196,11 +196,9 @@
             drawLines(state.lines.supBack, "#3ddc5a", true, cbSupBack && cbSupBack.checked);
             drawLines(state.lines.supIn, "#5bc0f8", false, cbSupIn && cbSupIn.checked);
  
-            if (cbAtkOut && cbAtkOut.checked) drawMovingDots(state.lines.atkOut);
-            if (cbAtkIn && cbAtkIn.checked) drawMovingDots(state.lines.atkIn);
-            if (cbSupOut && cbSupOut.checked) drawMovingDots(state.lines.supOut);
-            if (cbSupBack && cbSupBack.checked) drawMovingDots(state.lines.supBack);
-            if (cbSupIn && cbSupIn.checked) drawMovingDots(state.lines.supIn);
+            if (cbAtkOut && cbAtkOut.checked) drawMovingDots(state.lines.atkOut, "#3ddc5a");
+            if (cbAtkIn && cbAtkIn.checked) drawMovingDots(state.lines.atkIn, "#e04b4b");
+            if (cbSupIn && cbSupIn.checked) drawMovingDots(state.lines.supIn, "#5bc0f8");
         });
     }
  
