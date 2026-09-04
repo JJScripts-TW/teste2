@@ -46,19 +46,14 @@
             '<div id="jjos-result" style="margin-top:6px;"></div>' +
 
             '<div style="margin-top:14px;padding-top:10px;border-top:1px solid rgba(216,170,69,.25);">' +
-                '<div style="color:' + goldLight + ';font-size:11px;font-weight:800;margin-bottom:6px;">👑 NOBRES CADASTRADOS <span style="color:#666;font-weight:400;font-size:8px;">(Etapa 12)</span></div>' +
+                '<div style="color:' + goldLight + ';font-size:11px;font-weight:800;margin-bottom:6px;">📋 GERAR PLANO DE OP <span style="color:#666;font-weight:400;font-size:8px;">(Etapas 13/14/17 — calculado)</span></div>' +
+                '<div style="color:#999;font-size:8px;margin-bottom:6px;">Usa a última análise (alvos) e os fulls importados. Sugere quais fulls vão pra cada alvo e qual deles solta o nobre.</div>' +
                 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">' +
-                    '<input id="jjos-noble-player" placeholder="Jogador" style="' + inputStyle() + '">' +
-                    '<input id="jjos-noble-coord" placeholder="518|447" style="' + inputStyle() + '">' +
+                    '<div><div style="color:#aaa;font-size:8px;margin-bottom:3px;">ALVOS REAIS (Prioridade A)</div><input id="jjos-plan-count" type="number" min="1" value="10" style="' + inputStyle() + '"></div>' +
+                    '<div><div style="color:#aaa;font-size:8px;margin-bottom:3px;">FULLS MÍN. POR ALVO</div><input id="jjos-plan-fulls" type="number" min="1" value="5" style="' + inputStyle() + '"></div>' +
                 '</div>' +
-                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:5px;">' +
-                    '<input id="jjos-noble-qty" type="number" min="1" placeholder="Qtd nobres" style="' + inputStyle() + '">' +
-                    '<input id="jjos-noble-limit" type="number" min="1" placeholder="Limite (campos)" style="' + inputStyle() + '">' +
-                '</div>' +
-                '<button id="jjos-noble-add" style="width:100%;margin-top:6px;padding:7px;background:#202329;color:#eee;border:1px solid rgba(216,170,69,.5);border-radius:8px;font-size:9px;font-weight:700;cursor:pointer;">➕ CADASTRAR NOBRE</button>' +
-                '<div id="jjos-noble-list" style="margin-top:7px;"></div>' +
-                '<button id="jjos-noble-reach" style="width:100%;margin-top:6px;padding:7px;background:' + gold + ';color:#111;border:none;border-radius:8px;font-size:9px;font-weight:800;cursor:pointer;">🔎 CALCULAR ALCANCE (usa a última análise)</button>' +
-                '<div id="jjos-noble-result" style="margin-top:7px;"></div>' +
+                '<button id="jjos-plan-btn" style="width:100%;margin-top:7px;padding:7px;background:' + gold + ';color:#111;border:none;border-radius:8px;font-size:9px;font-weight:800;cursor:pointer;">📋 GERAR PLANO</button>' +
+                '<div id="jjos-plan-result" style="margin-top:7px;max-height:260px;overflow:auto;"></div>' +
             '</div>' +
 
             '<div style="margin-top:14px;padding-top:10px;border-top:1px solid rgba(216,170,69,.25);">' +
@@ -100,41 +95,8 @@
     var lastAnalysis = { villages: [], k: null, allyName: null };
     var lastFulls = { disponivel: [], parcial: [], naoOfensiva: [] };
 
-    var NOBLE_KEY = "JJOS_NOBRES";
-    function loadNobles() {
-        try { return JSON.parse(localStorage.getItem(NOBLE_KEY)) || []; } catch (e) { return []; }
-    }
-    function saveNobles(list) {
-        try { localStorage.setItem(NOBLE_KEY, JSON.stringify(list)); } catch (e) {}
-    }
     function distCalc(x1, y1, x2, y2) {
         return Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
-    }
-
-    function renderNobleList() {
-        var listEl = document.getElementById("jjos-noble-list");
-        var nobles = loadNobles();
-        if (!nobles.length) {
-            listEl.innerHTML = '<div style="color:#777;font-size:9px;text-align:center;padding:6px;">Nenhum nobre cadastrado ainda.</div>';
-            return;
-        }
-        var html = "";
-        nobles.forEach(function (n, i) {
-            html += '<div style="margin:3px 0;padding:6px 7px;background:rgba(15,17,21,.9);border:1px solid rgba(216,170,69,.28);border-radius:7px;font-size:9px;display:flex;align-items:center;">' +
-                '<div style="flex:1;"><b style="color:' + goldLight + '">' + n.player + '</b> — ' + n.coord + ' — ' + n.qty + ' nobre(s)' + (n.limit ? ' (limite ' + n.limit + ' campos)' : '') + '</div>' +
-                '<span data-remove-noble="' + i + '" style="color:#d66;cursor:pointer;padding:2px 5px;">✕</span>' +
-            '</div>';
-        });
-        listEl.innerHTML = html;
-        listEl.querySelectorAll("[data-remove-noble]").forEach(function (el) {
-            el.onclick = function () {
-                var idx = parseInt(this.getAttribute("data-remove-noble"), 10);
-                var current = loadNobles();
-                current.splice(idx, 1);
-                saveNobles(current);
-                renderNobleList();
-            };
-        });
     }
 
     document.getElementById("jjos-analyze").onclick = function () {
@@ -388,72 +350,85 @@
         });
     };
 
-    renderNobleList();
+    document.getElementById("jjos-plan-btn").onclick = function () {
+        var resultEl5 = document.getElementById("jjos-plan-result");
+        var realCount = parseInt(document.getElementById("jjos-plan-count").value, 10) || 10;
+        var minFullsPerTarget = parseInt(document.getElementById("jjos-plan-fulls").value, 10) || 5;
 
-    document.getElementById("jjos-noble-add").onclick = function () {
-        var player = document.getElementById("jjos-noble-player").value.trim();
-        var coord = document.getElementById("jjos-noble-coord").value.trim();
-        var qty = parseInt(document.getElementById("jjos-noble-qty").value, 10);
-        var limit = parseInt(document.getElementById("jjos-noble-limit").value, 10);
-
-        if (!player || !/^\d{1,3}\|\d{1,3}$/.test(coord) || !qty) {
-            alert("Preencha jogador, coordenada (formato 500|500) e quantidade de nobres.");
-            return;
-        }
-
-        var nobles = loadNobles();
-        nobles.push({
-            player: player,
-            coord: coord,
-            qty: qty,
-            limit: isNaN(limit) ? null : limit
-        });
-        saveNobles(nobles);
-        renderNobleList();
-
-        document.getElementById("jjos-noble-player").value = "";
-        document.getElementById("jjos-noble-coord").value = "";
-        document.getElementById("jjos-noble-qty").value = "";
-        document.getElementById("jjos-noble-limit").value = "";
-    };
-
-    document.getElementById("jjos-noble-reach").onclick = function () {
-        var resultEl2 = document.getElementById("jjos-noble-result");
-        var nobles = loadNobles();
-
-        if (!nobles.length) {
-            resultEl2.innerHTML = '<div style="color:#d66;font-size:9px;text-align:center;">Cadastre pelo menos um nobre primeiro.</div>';
-            return;
-        }
         if (!lastAnalysis.villages.length) {
-            resultEl2.innerHTML = '<div style="color:#d66;font-size:9px;text-align:center;">Rode "🔎 ANALISAR MAPA" primeiro pra ter alvos.</div>';
+            resultEl5.innerHTML = '<div style="color:#d66;font-size:9px;text-align:center;">Rode "🔎 ANALISAR MAPA" primeiro.</div>';
+            return;
+        }
+        if (!lastFulls.disponivel.length && !lastFulls.parcial.length) {
+            resultEl5.innerHTML = '<div style="color:#d66;font-size:9px;text-align:center;">Rode "⚔️ IMPORTAR FULLS" primeiro (nenhum full disponível ainda).</div>';
             return;
         }
 
-        var html = '<div style="color:' + goldLight + ';font-weight:800;font-size:9px;margin-bottom:5px;">Alcance contra ' + lastAnalysis.allyName + ' em K' + lastAnalysis.k + ':</div>';
+        var sorted = lastAnalysis.villages.slice().sort(function (a, b) { return b.score - a.score; });
+        var priorityA = sorted.slice(0, realCount);
+        var priorityB = sorted.slice(realCount, realCount * 3);
+        var priorityC = sorted.slice(realCount * 3);
 
-        nobles.forEach(function (n) {
-            var parts = n.coord.split("|");
-            var nx = parseInt(parts[0], 10), ny = parseInt(parts[1], 10);
-            var reachable = lastAnalysis.villages.filter(function (v) {
-                var d = distCalc(nx, ny, v.x, v.y);
-                return !n.limit || d <= n.limit;
-            });
-            reachable.sort(function (a, b) {
-                return distCalc(nx, ny, a.x, a.y) - distCalc(nx, ny, b.x, b.y);
-            });
+        var pool = lastFulls.disponivel.concat(lastFulls.parcial).map(function (f) {
+            return { player: f.player, coord: f.coord, x: parseInt(f.coord.split("|")[0], 10), y: parseInt(f.coord.split("|")[1], 10), used: false };
+        });
 
+        function assignFulls(target, minCount) {
+            var candidates = pool.filter(function (f) { return !f.used; });
+            candidates.sort(function (a, b) {
+                return distCalc(target.x, target.y, a.x, a.y) - distCalc(target.x, target.y, b.x, b.y);
+            });
+            var chosen = candidates.slice(0, minCount);
+            chosen.forEach(function (f) { f.used = true; });
+            return chosen;
+        }
+
+        var planA = priorityA.map(function (t) {
+            var fulls = assignFulls(t, minFullsPerTarget);
+            var nobleFull = fulls.length ? fulls[0] : null;
+            return { target: t, fulls: fulls, nobleFull: nobleFull };
+        });
+
+        var planB = priorityB.map(function (t) {
+            var fulls = assignFulls(t, 1);
+            return { target: t, fulls: fulls };
+        });
+
+        var totalFullsUsed = pool.filter(function (f) { return f.used; }).length;
+        var totalFullsAvailable = pool.length;
+
+        var html =
+            '<div style="padding:7px;background:rgba(15,17,21,.9);border:1px solid rgba(216,170,69,.28);border-radius:8px;font-size:9px;margin-bottom:6px;">' +
+                '<div style="color:' + goldLight + ';font-weight:800;">📋 RESUMO DO PLANO</div>' +
+                '<div style="color:#ccc;">🔴 Prioridade A: ' + priorityA.length + ' alvo(s)</div>' +
+                '<div style="color:#ccc;">🟡 Prioridade B: ' + priorityB.length + ' alvo(s)</div>' +
+                '<div style="color:#777;">👻 Fake/Pressão: ' + priorityC.length + ' alvo(s)</div>' +
+                '<div style="color:#ccc;margin-top:3px;">Fulls usados: ' + totalFullsUsed + ' / ' + totalFullsAvailable + ' disponíveis</div>' +
+            '</div>';
+
+        html += '<div style="color:' + goldLight + ';font-weight:800;font-size:9px;margin:6px 0 4px;">🔴 PRIORIDADE A</div>';
+        planA.forEach(function (p, i) {
             html += '<div style="margin:4px 0;padding:6px 7px;background:rgba(15,17,21,.9);border:1px solid rgba(216,170,69,.28);border-radius:7px;font-size:9px;">' +
-                '<b style="color:' + goldLight + '">' + n.player + '</b> (' + n.coord + ', ' + n.qty + ' nobre(s)) — ' +
-                '<b>' + reachable.length + '</b> alvo(s) ao alcance' + (n.limit ? ' (≤' + n.limit + ' campos)' : '') +
-                (reachable.length ? '<div style="margin-top:3px;color:#aaa;">' +
-                    reachable.slice(0, 8).map(function (v) { return v.coord + " (" + distCalc(nx, ny, v.x, v.y).toFixed(1) + ")"; }).join(" · ") +
-                    (reachable.length > 8 ? " · +" + (reachable.length - 8) + " outros" : "") +
-                '</div>' : '') +
+                '<b style="color:' + goldLight + '">#' + (i + 1) + ' ' + p.target.coord + '</b> <span style="color:#777;">(score ' + p.target.score + '/100)</span>' +
+                '<div style="margin-top:3px;color:#aaa;">⚔️ Fulls (' + p.fulls.length + '/' + minFullsPerTarget + '): ' +
+                    (p.fulls.length ? p.fulls.map(function (f) { return f.coord + " (" + f.player + ")"; }).join(", ") : "nenhum disponível") +
+                '</div>' +
+                (p.nobleFull ? '<div style="color:#e0c060;margin-top:2px;">👑 Sugestão de nobre: <b>' + p.nobleFull.coord + '</b> (' + p.nobleFull.player + ')</div>' : '<div style="color:#d66;margin-top:2px;">⚠️ Sem full disponível pra soltar nobre</div>') +
+                (p.fulls.length < minFullsPerTarget ? '<div style="color:#d66;margin-top:2px;">⚠️ Faltam ' + (minFullsPerTarget - p.fulls.length) + ' full(s) pra esse alvo</div>' : '') +
             '</div>';
         });
 
-        resultEl2.innerHTML = html;
+        if (planB.length) {
+            html += '<div style="color:#e0c060;font-weight:800;font-size:9px;margin:8px 0 4px;">🟡 PRIORIDADE B (1 full cada, se sobrar)</div>';
+            planB.forEach(function (p, i) {
+                if (!p.fulls.length) return;
+                html += '<div style="margin:3px 0;padding:5px 7px;background:rgba(15,17,21,.85);border:1px solid rgba(216,170,69,.2);border-radius:6px;font-size:8px;color:#aaa;">' +
+                    p.target.coord + ' (score ' + p.target.score + ') — full: ' + p.fulls[0].coord + ' (' + p.fulls[0].player + ')' +
+                '</div>';
+            });
+        }
+
+        resultEl5.innerHTML = html;
     };
 
     document.getElementById("jjos-focus-btn").onclick = function () {
