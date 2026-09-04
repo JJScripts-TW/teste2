@@ -106,43 +106,32 @@
                 ctx.fillRect(p[0], p[1], dotOther, dotOther);
             });
  
-            var dotMid = Math.max(2, state.scale * 1.2);
             function drawGroup(list, color) {
                 ctx.fillStyle = color;
                 list.forEach(function (v) {
                     var p = worldToScreen(v.x, v.y);
                     if (p[0] < -5 || p[0] > canvas.width + 5 || p[1] < -5 || p[1] > canvas.height + 5) return;
-                    ctx.fillRect(p[0] - dotMid / 2, p[1] - dotMid / 2, dotMid, dotMid);
+                    ctx.fillRect(p[0], p[1], dotOther, dotOther);
                 });
             }
             drawGroup(state.pna, COLOR_PNA);
             drawGroup(state.ally, COLOR_ALLY);
             drawGroup(state.enemy, COLOR_ENEMY);
+            drawGroup(state.tribe, COLOR_TRIBE);
+            drawGroup(state.mine, COLOR_ME);
  
-            var dotBig = Math.max(2.5, state.scale * 1.6);
-            ctx.fillStyle = COLOR_TRIBE;
-            state.tribe.forEach(function (v) {
-                var p = worldToScreen(v.x, v.y);
-                ctx.fillRect(p[0] - dotBig / 2, p[1] - dotBig / 2, dotBig, dotBig);
-            });
- 
-            ctx.fillStyle = COLOR_ME;
-            state.mine.forEach(function (v) {
-                var p = worldToScreen(v.x, v.y);
-                ctx.fillRect(p[0] - dotBig / 2, p[1] - dotBig / 2, dotBig, dotBig);
-            });
- 
-            var lineWidth = Math.max(1.4, state.scale * 1.3);
+            var lineWidth = Math.max(1, state.scale * 0.9);
  
             function drawArrowHead(p1, p2, color, size) {
                 var angle = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]);
                 ctx.save();
+                ctx.shadowBlur = 0;
                 ctx.translate(p2[0], p2[1]);
                 ctx.rotate(angle);
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
-                ctx.lineTo(-size * 1.8, -size);
-                ctx.lineTo(-size * 1.8, size);
+                ctx.lineTo(-size * 1.6, -size * 0.8);
+                ctx.lineTo(-size * 1.6, size * 0.8);
                 ctx.closePath();
                 ctx.fillStyle = color;
                 ctx.fill();
@@ -150,46 +139,40 @@
             }
  
             function drawLines(list, color, dashed, checked) {
-                if (!checked) return;
+                if (!checked || !list.length) return;
                 ctx.lineCap = "round";
                 ctx.lineJoin = "round";
+                ctx.shadowColor = color;
+                ctx.shadowBlur = lineWidth * 1.4;
+                ctx.strokeStyle = color;
+                ctx.globalAlpha = 0.85;
+                ctx.lineWidth = lineWidth;
+                ctx.setLineDash(dashed ? [lineWidth * 2.5, lineWidth * 2] : []);
  
                 list.forEach(function (l) {
                     var p1 = worldToScreen(l.from.x, l.from.y);
                     var p2 = worldToScreen(l.to.x, l.to.y);
- 
-                    // camada de brilho (glow) por baixo
-                    ctx.save();
-                    ctx.shadowColor = color;
-                    ctx.shadowBlur = lineWidth * 4;
-                    ctx.strokeStyle = color;
-                    ctx.globalAlpha = 0.35;
-                    ctx.lineWidth = lineWidth * 3;
-                    ctx.setLineDash(dashed ? [lineWidth * 3, lineWidth * 2.2] : []);
                     ctx.beginPath();
                     ctx.moveTo(p1[0], p1[1]);
                     ctx.lineTo(p2[0], p2[1]);
                     ctx.stroke();
-                    ctx.restore();
- 
-                    // núcleo brilhante fino por cima
-                    ctx.save();
-                    ctx.shadowBlur = 0;
-                    ctx.globalAlpha = 1;
-                    ctx.strokeStyle = "#ffffff";
-                    ctx.lineWidth = Math.max(0.8, lineWidth * 0.4);
-                    ctx.setLineDash(dashed ? [lineWidth * 3, lineWidth * 2.2] : []);
-                    ctx.beginPath();
-                    ctx.moveTo(p1[0], p1[1]);
-                    ctx.lineTo(p2[0], p2[1]);
-                    ctx.stroke();
-                    ctx.restore();
- 
-                    if (!dashed) {
-                        drawArrowHead(p1, p2, color, Math.max(3, lineWidth * 2.2));
-                    }
                 });
+ 
+                if (!dashed) {
+                    var segLen = Math.max(6, lineWidth * 2.5);
+                    list.forEach(function (l) {
+                        var p1 = worldToScreen(l.from.x, l.from.y);
+                        var p2 = worldToScreen(l.to.x, l.to.y);
+                        var dx = p2[0] - p1[0], dy = p2[1] - p1[1];
+                        if (Math.sqrt(dx * dx + dy * dy) > segLen * 1.5) {
+                            drawArrowHead(p1, p2, color, segLen * 0.6);
+                        }
+                    });
+                }
+ 
                 ctx.setLineDash([]);
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1;
             }
  
             var cbAtkOut = document.getElementById("jjwm-cb-atk-out");
