@@ -1,0 +1,328 @@
+(function () {
+    var gold = "#d8aa45";
+    var goldLight = "#f0c65d";
+ 
+    var old = document.getElementById("jj-op-gen");
+    if (old) { old.remove(); return; }
+ 
+    function inputStyle() {
+        return "width:100%;box-sizing:border-box;padding:8px;color:#eee;background:#0d0f12;" +
+               "border:1px solid rgba(216,170,69,.38);border-radius:8px;font-size:10px;outline:none;";
+    }
+    function textareaStyle() {
+        return inputStyle() + "min-height:120px;resize:vertical;font-family:monospace;";
+    }
+ 
+    var panel = document.createElement("div");
+    panel.id = "jj-op-gen";
+    panel.style.cssText =
+        "position:fixed;z-index:999999;top:50px;right:8px;width:325px;max-width:92vw;" +
+        "max-height:86vh;overflow:auto;box-sizing:border-box;" +
+        "background:linear-gradient(145deg,#17191d 0%,#08090c 52%,#121419 100%);" +
+        "border:1px solid #8a6728;border-radius:14px;color:#eee;" +
+        "font-family:-apple-system,BlinkMacSystemFont,Verdana,Arial;" +
+        "box-shadow:0 14px 42px rgba(0,0,0,.74);";
+ 
+    panel.innerHTML =
+        '<div id="jjog-h" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:linear-gradient(135deg,#191b1f,#090a0c 70%);border-radius:13px 13px 0 0;border-bottom:1px solid rgba(216,170,69,.45);touch-action:none;">' +
+            '<div style="color:' + goldLight + ';font-size:13px;font-weight:800;">🎯 Gerador de Alvos por K</div>' +
+            '<span id="jjog-x" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:#ddd;font-size:13px;border:1px solid rgba(216,170,69,.4);border-radius:6px;background:#111318;cursor:pointer;">✕</span>' +
+        '</div>' +
+        '<div style="padding:10px;">' +
+            '<div style="color:#aaa;font-size:9px;margin-bottom:4px;">NOME DO JOGADOR</div>' +
+            '<input id="jjog-name" placeholder="Ex: fulano123" style="' + inputStyle() + '">' +
+ 
+            '<div style="color:#aaa;font-size:9px;margin:8px 0 4px;">CONTINENTE (K) — deixe vazio pra trazer todos</div>' +
+            '<input id="jjog-k" placeholder="Ex: 35" style="' + inputStyle() + '">' +
+ 
+            '<div style="color:#aaa;font-size:9px;margin:8px 0 4px;">MUNDO — deixe vazio pra usar o mundo atual</div>' +
+            '<input id="jjog-world" placeholder="Ex: 142" style="' + inputStyle() + '">' +
+ 
+            '<button id="jjog-search" style="width:100%;margin-top:9px;padding:9px;background:' + gold + ';color:#111;border:none;border-radius:8px;font-weight:800;font-size:11px;cursor:pointer;">🔎 BUSCAR JOGADOR</button>' +
+ 
+            '<div id="jjog-status" style="margin-top:9px;color:#aaa;font-size:9px;line-height:14px;"></div>' +
+            '<textarea id="jjog-output" readonly placeholder="As coordenadas aparecem aqui..." style="' + textareaStyle() + 'margin-top:7px;"></textarea>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px;">' +
+                '<button id="jjog-copy" style="padding:7px;background:#202329;color:#eee;border:1px solid rgba(216,170,69,.5);border-radius:8px;font-size:9px;font-weight:700;cursor:pointer;">📋 COPIAR</button>' +
+                '<button id="jjog-map-btn" style="padding:7px;background:#202329;color:#eee;border:1px solid rgba(216,170,69,.5);border-radius:8px;font-size:9px;font-weight:700;cursor:pointer;">🗺️ VER NO MAPA</button>' +
+            '</div>' +
+            '<div id="jjog-map"></div>' +
+        '</div>';
+ 
+    document.body.appendChild(panel);
+    document.getElementById("jjog-x").onclick = function () { panel.remove(); };
+ 
+    document.getElementById("jjog-copy").onclick = function () {
+        var val = document.getElementById("jjog-output").value;
+        var ta = document.createElement("textarea");
+        ta.value = val;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); } catch (e) {}
+        ta.remove();
+        var btn = document.getElementById("jjog-copy");
+        btn.textContent = "✅ Copiado!";
+        setTimeout(function () { btn.textContent = "📋 COPIAR COORDENADAS"; }, 1300);
+    };
+ 
+    function decodeName(raw) {
+        try {
+            return decodeURIComponent(raw.replace(/\+/g, " "));
+        } catch (e) {
+            return raw;
+        }
+    }
+ 
+    function findPlayerId(text, wantedName) {
+        var lines = text.split("\n");
+        var wanted = wantedName.trim().toLowerCase();
+        var exactMatch = null;
+        var partialMatch = null;
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (!line) continue;
+            var cols = line.split(",");
+            if (cols.length < 2) continue;
+            var pid = cols[0];
+            var pname = decodeName(cols[1]);
+            var pnameLower = pname.toLowerCase();
+            if (pnameLower === wanted) { exactMatch = { id: pid, name: pname }; break; }
+            if (!partialMatch && pnameLower.indexOf(wanted) !== -1) { partialMatch = { id: pid, name: pname }; }
+        }
+        return exactMatch || partialMatch;
+    }
+ 
+    var lastAllVillages = [];
+ 
+    function extractAllVillageCoords(text) {
+        var lines = text.split("\n");
+        var result = [];
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (!line) continue;
+            var cols = line.split(",");
+            if (cols.length < 4) continue;
+            var x = parseInt(cols[2], 10);
+            var y = parseInt(cols[3], 10);
+            if (isNaN(x) || isNaN(y)) continue;
+            result.push({ x: x, y: y });
+        }
+        return result;
+    }
+ 
+    function extractVillagesForPlayer(text, playerId) {
+        var lines = text.split("\n");
+        var result = [];
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (!line) continue;
+            var cols = line.split(",");
+            if (cols.length < 5) continue;
+            if (cols[4] !== playerId) continue;
+            var x = parseInt(cols[2], 10);
+            var y = parseInt(cols[3], 10);
+            if (isNaN(x) || isNaN(y)) continue;
+            var coord = x + "|" + y;
+            var k = Math.floor(y / 100) * 10 + Math.floor(x / 100);
+            result.push({ coord: coord, k: String(k) });
+        }
+        return result;
+    }
+ 
+    function buildBaseUrl(world) {
+        if (!world) return "";
+        var host = location.hostname;
+        var parts = host.split(".");
+        parts[0] = "br" + world;
+        return location.protocol + "//" + parts.join(".");
+    }
+ 
+    document.getElementById("jjog-search").onclick = function () {
+        var name = document.getElementById("jjog-name").value.trim();
+        var kFilter = document.getElementById("jjog-k").value.trim().replace(/[^0-9]/g, "");
+        var world = document.getElementById("jjog-world").value.trim();
+        var statusEl = document.getElementById("jjog-status");
+        var outputEl = document.getElementById("jjog-output");
+        statusEl.innerHTML = "";
+        outputEl.value = "";
+ 
+        if (!name) { statusEl.innerHTML = "Digite o nome do jogador."; return; }
+ 
+        var base = buildBaseUrl(world);
+        var playerUrl = base + "/map/player.txt";
+        var villageUrl = base + "/map/village.txt";
+ 
+        statusEl.innerHTML = "🔎 Baixando lista de jogadores" + (world ? " do mundo " + world : "") + "...";
+ 
+        fetch(playerUrl)
+            .then(function (res) { return res.text(); })
+            .then(function (playerText) {
+                var found = findPlayerId(playerText, name);
+                if (!found) {
+                    statusEl.innerHTML = "⚠️ Jogador não encontrado em player.txt.\n\nURL testada: " + playerUrl;
+                    return;
+                }
+ 
+                statusEl.innerHTML = "✅ Jogador: " + found.name + " (ID " + found.id + "). Baixando lista de aldeias...";
+ 
+                fetch(villageUrl)
+                    .then(function (res2) { return res2.text(); })
+                    .then(function (villageText) {
+                        lastAllVillages = extractAllVillageCoords(villageText);
+                        var all = extractVillagesForPlayer(villageText, found.id);
+ 
+                        if (!all.length) {
+                            statusEl.innerHTML = "⚠️ Nenhuma aldeia encontrada pra esse ID em village.txt.";
+                            return;
+                        }
+ 
+                        var kCounts = {};
+                        all.forEach(function (v) {
+                            kCounts[v.k] = (kCounts[v.k] || 0) + 1;
+                        });
+                        var kSummary = Object.keys(kCounts).sort(function (a, b) { return kCounts[b] - kCounts[a]; })
+                            .map(function (k) { return "K" + k + " (" + kCounts[k] + ")"; })
+                            .join(", ");
+ 
+                        var filtered = kFilter ? all.filter(function (v) { return parseInt(v.k, 10) === parseInt(kFilter, 10); }) : all;
+                        var seen = {};
+                        var uniqueCoords = [];
+                        filtered.forEach(function (v) {
+                            if (!seen[v.coord]) { seen[v.coord] = true; uniqueCoords.push(v.coord); }
+                        });
+ 
+                        outputEl.value = uniqueCoords.join("\n");
+                        statusEl.innerHTML = "📍 " + uniqueCoords.length + " coordenada(s)" +
+                            (kFilter ? " em K" + kFilter : "") +
+                            " de " + all.length + " aldeia(s) no total do jogador " + found.name + ".<br><br>K's encontrados: " + kSummary;
+                    })
+                    .catch(function (e) {
+                        statusEl.innerHTML = "❌ Erro ao baixar village.txt: " + e.message;
+                    });
+            })
+            .catch(function (e) {
+                statusEl.innerHTML = "❌ Erro ao baixar player.txt: " + e.message + "\n\nURL testada: " + playerUrl;
+            });
+    };
+ 
+    function renderMap(coords) {
+        var mapBox = document.getElementById("jjog-map");
+        if (!coords.length) {
+            mapBox.innerHTML = '<div style="padding:10px;text-align:center;color:#777;font-size:9px;">Nenhuma coordenada pra mostrar.</div>';
+            return;
+        }
+ 
+        var points = coords.map(function (c) {
+            var parts = c.split("|");
+            return { x: parseInt(parts[0], 10), y: parseInt(parts[1], 10) };
+        }).filter(function (p) { return !isNaN(p.x) && !isNaN(p.y); });
+ 
+        if (!points.length) {
+            mapBox.innerHTML = '<div style="padding:10px;text-align:center;color:#777;font-size:9px;">Coordenadas inválidas.</div>';
+            return;
+        }
+ 
+        var minX = Math.min.apply(null, points.map(function (p) { return p.x; }));
+        var maxX = Math.max.apply(null, points.map(function (p) { return p.x; }));
+        var minY = Math.min.apply(null, points.map(function (p) { return p.y; }));
+        var maxY = Math.max.apply(null, points.map(function (p) { return p.y; }));
+ 
+        var rangeX = Math.max(maxX - minX, 4);
+        var rangeY = Math.max(maxY - minY, 4);
+        var pad = Math.max(rangeX, rangeY) * 0.15 + 3;
+ 
+        var vbMinX = minX - pad;
+        var vbMinY = minY - pad;
+        var vbW = rangeX + pad * 2;
+        var vbH = rangeY + pad * 2;
+ 
+        function niceStep(range) {
+            if (range <= 30) return 5;
+            if (range <= 80) return 10;
+            if (range <= 200) return 25;
+            if (range <= 500) return 50;
+            return 100;
+        }
+        var step = niceStep(Math.max(vbW, vbH));
+ 
+        var gridLines = "";
+        var gxStart = Math.floor(vbMinX / step) * step;
+        for (var gx = gxStart; gx <= vbMinX + vbW; gx += step) {
+            gridLines += '<line x1="' + gx + '" y1="' + vbMinY + '" x2="' + gx + '" y2="' + (vbMinY + vbH) + '" stroke="rgba(216,170,69,.18)" stroke-width="' + (vbW * 0.002) + '"/>';
+        }
+        var gyStart = Math.floor(vbMinY / step) * step;
+        for (var gy = gyStart; gy <= vbMinY + vbH; gy += step) {
+            gridLines += '<line x1="' + vbMinX + '" y1="' + gy + '" x2="' + (vbMinX + vbW) + '" y2="' + gy + '" stroke="rgba(216,170,69,.18)" stroke-width="' + (vbW * 0.002) + '"/>';
+        }
+ 
+        var radius = Math.max(vbW, vbH) * 0.012;
+        var contextRadius = radius * 0.45;
+ 
+        var contextDots = "";
+        lastAllVillages.forEach(function (v) {
+            if (v.x < vbMinX || v.x > vbMinX + vbW || v.y < vbMinY || v.y > vbMinY + vbH) return;
+            contextDots += '<circle cx="' + v.x + '" cy="' + v.y + '" r="' + contextRadius + '" fill="rgba(216,170,69,.35)"/>';
+        });
+ 
+        var dots = "";
+        points.forEach(function (p) {
+            dots += '<circle cx="' + p.x + '" cy="' + p.y + '" r="' + radius + '" fill="#ffffff" stroke="#111318" stroke-width="' + (radius * 0.35) + '"/>';
+        });
+ 
+        var svg =
+            '<svg width="100%" viewBox="' + vbMinX + ' ' + vbMinY + ' ' + vbW + ' ' + vbH + '" style="background:#0d0f12;border:1px solid rgba(216,170,69,.4);border-radius:8px;">' +
+                gridLines +
+                contextDots +
+                dots +
+            '</svg>';
+ 
+        mapBox.innerHTML =
+            '<div style="margin-top:7px;">' + svg + '</div>' +
+            '<div style="margin-top:4px;color:#777;font-size:8px;text-align:center;">' + points.length + ' aldeia(s) — área ' + minX + '-' + maxX + ' | ' + minY + '-' + maxY + '</div>';
+    }
+ 
+    document.getElementById("jjog-map-btn").onclick = function () {
+        var coords = document.getElementById("jjog-output").value.split("\n").map(function (s) { return s.trim(); }).filter(Boolean);
+        renderMap(coords);
+    };
+ 
+    // arrastar
+    var header = document.getElementById("jjog-h");
+    var sx = 0, sy = 0, iL = 0, iT = 0, dragging = false, moved = false;
+    function pt(e) {
+        if (e.touches && e.touches.length) return e.touches[0];
+        if (e.changedTouches && e.changedTouches.length) return e.changedTouches[0];
+        return e;
+    }
+    function start(e) {
+        if (e.target && e.target.closest && e.target.closest("#jjog-x")) return;
+        var p = pt(e);
+        var r = panel.getBoundingClientRect();
+        sx = p.clientX; sy = p.clientY; iL = r.left; iT = r.top;
+        dragging = true; moved = false;
+    }
+    function move(e) {
+        if (!dragging) return;
+        var p = pt(e);
+        var dx = p.clientX - sx, dy = p.clientY - sy;
+        if (!moved) {
+            if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+            panel.style.left = iL + "px";
+            panel.style.top = iT + "px";
+            panel.style.right = "auto";
+            moved = true;
+        }
+        if (e.cancelable) e.preventDefault();
+        panel.style.left = Math.max(0, Math.min(iL + dx, window.innerWidth - panel.offsetWidth)) + "px";
+        panel.style.top = Math.max(0, Math.min(iT + dy, window.innerHeight - 50)) + "px";
+    }
+    function end() { dragging = false; moved = false; }
+    header.addEventListener("touchstart", start, { passive: true });
+    header.addEventListener("touchmove", move, { passive: false });
+    header.addEventListener("touchend", end, { passive: true });
+    header.addEventListener("mousedown", start);
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", end);
+})();
