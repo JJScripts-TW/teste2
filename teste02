@@ -31,6 +31,13 @@
                 '<button id="jjwm-zoom-out" style="width:36px;height:36px;background:#111318;color:' + gold + ';border:1px solid rgba(216,170,69,.5);border-radius:8px;font-size:16px;font-weight:800;">−</button>' +
                 '<button id="jjwm-reset" style="width:36px;height:36px;background:#111318;color:#ccc;border:1px solid rgba(216,170,69,.5);border-radius:8px;font-size:11px;">⟳</button>' +
             '</div>' +
+            '<div style="position:absolute;right:10px;top:10px;padding:7px 8px;background:rgba(10,11,14,.9);border:1px solid rgba(216,170,69,.4);border-radius:8px;font-size:9px;">' +
+                '<button id="jjwm-load-commands" style="width:100%;padding:6px;background:' + gold + ';color:#111;border:none;border-radius:6px;font-size:9px;font-weight:800;cursor:pointer;margin-bottom:6px;">⚔️ CARREGAR COMANDOS</button>' +
+                '<label style="display:flex;align-items:center;gap:5px;margin-bottom:3px;"><input type="checkbox" id="jjwm-cb-atk-out" checked>Atacando</label>' +
+                '<label style="display:flex;align-items:center;gap:5px;margin-bottom:3px;"><input type="checkbox" id="jjwm-cb-atk-in" checked>Recebendo</label>' +
+                '<label style="display:flex;align-items:center;gap:5px;margin-bottom:3px;"><input type="checkbox" id="jjwm-cb-sup-out" checked>Apoio indo</label>' +
+                '<label style="display:flex;align-items:center;gap:5px;"><input type="checkbox" id="jjwm-cb-sup-back" checked>Apoio voltando</label>' +
+            '</div>' +
             '<div style="position:absolute;left:10px;bottom:10px;padding:6px 8px;background:rgba(10,11,14,.85);border:1px solid rgba(216,170,69,.3);border-radius:8px;font-size:8px;line-height:14px;">' +
                 '<div><span style="display:inline-block;width:8px;height:8px;background:' + COLOR_ME + ';border-radius:2px;margin-right:4px;"></span>Eu</div>' +
                 '<div><span style="display:inline-block;width:8px;height:8px;background:' + COLOR_TRIBE + ';border-radius:2px;margin-right:4px;"></span>Minha tribo</div>' +
@@ -59,7 +66,8 @@
     var state = {
         minX: 0, maxX: 999, minY: 0, maxY: 999,
         scale: 1, offsetX: 0, offsetY: 0,
-        mine: [], tribe: [], ally: [], pna: [], enemy: [], other: []
+        mine: [], tribe: [], ally: [], pna: [], enemy: [], other: [],
+        lines: { atkOut: [], atkIn: [], supOut: [], supBack: [] }
     };
 
     function fitToView() {
@@ -123,6 +131,34 @@
                 var p = worldToScreen(v.x, v.y);
                 ctx.fillRect(p[0] - dotBig / 2, p[1] - dotBig / 2, dotBig, dotBig);
             });
+
+            var lineWidth = Math.max(1, state.scale * 1.5);
+
+            function drawLines(list, color, dashed, checked) {
+                if (!checked) return;
+                ctx.strokeStyle = color;
+                ctx.lineWidth = lineWidth;
+                ctx.setLineDash(dashed ? [lineWidth * 3, lineWidth * 2] : []);
+                list.forEach(function (l) {
+                    var p1 = worldToScreen(l.from.x, l.from.y);
+                    var p2 = worldToScreen(l.to.x, l.to.y);
+                    ctx.beginPath();
+                    ctx.moveTo(p1[0], p1[1]);
+                    ctx.lineTo(p2[0], p2[1]);
+                    ctx.stroke();
+                });
+                ctx.setLineDash([]);
+            }
+
+            var cbAtkOut = document.getElementById("jjwm-cb-atk-out");
+            var cbAtkIn = document.getElementById("jjwm-cb-atk-in");
+            var cbSupOut = document.getElementById("jjwm-cb-sup-out");
+            var cbSupBack = document.getElementById("jjwm-cb-sup-back");
+
+            drawLines(state.lines.atkOut, "#3ddc5a", false, cbAtkOut && cbAtkOut.checked);
+            drawLines(state.lines.atkIn, "#e04b4b", false, cbAtkIn && cbAtkIn.checked);
+            drawLines(state.lines.supOut, "#3ddc5a", false, cbSupOut && cbSupOut.checked);
+            drawLines(state.lines.supBack, "#3ddc5a", true, cbSupBack && cbSupBack.checked);
         });
     }
 
@@ -242,6 +278,94 @@
             }).catch(function (e) { statusEl.textContent = "❌ Erro ao baixar player.txt: " + e.message; });
         }).catch(function (e) { statusEl.textContent = "❌ Erro ao ler diplomacia: " + e.message; });
     }
+
+    function extractCoord(text) {
+        var m = String(text || "").match(/\((\d{1,3})\|(\d{1,3})\)/);
+        if (!m) return null;
+        return { x: parseInt(m[1], 10), y: parseInt(m[2], 10) };
+    }
+
+    function findBiggestTable(doc) {
+        var tables = doc.querySelectorAll("table.vis");
+        var best = null, bestCount = 0;
+        tables.forEach(function (t) {
+            var rows = t.querySelectorAll("tbody tr");
+            if (rows.length > bestCount) { bestCount = rows.length; best = t; }
+        });
+        return best;
+    }
+
+    function loadCommands() {
+        var villageId = "0";
+        try { if (window.game_data && game_data.village) villageId = game_data.village.id; } catch (e) {}
+
+        var combinedUrl = "/game.php?village=" + villageId + "&screen=overview_villages&mode=commands";
+        var incomingsUrl = "/game.php?village=" + villageId + "&screen=overview_villages&mode=incomings&type=unignored&subtype=all";
+
+        statusEl.textContent = "🔎 Carregando comandos enviados/retornando...";
+
+        fetch(combinedUrl, { credentials: "same-origin" }).then(function (r) { return r.text(); }).then(function (html) {
+            var doc = new DOMParser().parseFromString(html, "text/html");
+            var table = findBiggestTable(doc);
+            var atkOut = [], supOut = [], supBack = [];
+
+            if (table) {
+                var rows = table.querySelectorAll("tbody tr");
+                rows.forEach(function (row) {
+                    var cells = row.querySelectorAll("td");
+                    if (cells.length < 2) return;
+                    var desc = (cells[0].textContent || "").trim();
+                    var target = extractCoord(desc);
+                    var origin = extractCoord(cells[1].textContent);
+                    if (!target || !origin) return;
+
+                    if (/^Ataque a/i.test(desc)) {
+                        atkOut.push({ from: origin, to: target });
+                    } else if (/^Apoio a/i.test(desc)) {
+                        supOut.push({ from: origin, to: target });
+                    } else if (/^Retorno de/i.test(desc)) {
+                        supBack.push({ from: target, to: origin });
+                    }
+                });
+            }
+
+            state.lines.atkOut = atkOut;
+            state.lines.supOut = supOut;
+            state.lines.supBack = supBack;
+
+            statusEl.textContent = "🔎 Carregando ataques recebidos...";
+
+            fetch(incomingsUrl, { credentials: "same-origin" }).then(function (r2) { return r2.text(); }).then(function (html2) {
+                var doc2 = new DOMParser().parseFromString(html2, "text/html");
+                var table2 = findBiggestTable(doc2);
+                var atkIn = [];
+
+                if (table2) {
+                    var rows2 = table2.querySelectorAll("tbody tr");
+                    rows2.forEach(function (row) {
+                        var cells2 = row.querySelectorAll("td");
+                        if (cells2.length < 3) return;
+                        var tipo = (cells2[0].textContent || "").trim();
+                        if (!/ataque/i.test(tipo)) return;
+                        var destino = extractCoord(cells2[1].textContent);
+                        var origem = extractCoord(cells2[2].textContent);
+                        if (!destino || !origem) return;
+                        atkIn.push({ from: origem, to: destino });
+                    });
+                }
+
+                state.lines.atkIn = atkIn;
+                draw();
+                statusEl.textContent = "✅ Linhas carregadas: " + atkOut.length + " atacando, " + atkIn.length + " recebendo, " +
+                    supOut.length + " apoio indo, " + supBack.length + " apoio/retorno voltando.";
+            }).catch(function (e) { statusEl.textContent = "❌ Erro ao carregar recebidos: " + e.message; });
+        }).catch(function (e) { statusEl.textContent = "❌ Erro ao carregar comandos: " + e.message; });
+    }
+
+    document.getElementById("jjwm-load-commands").onclick = loadCommands;
+    ["jjwm-cb-atk-out", "jjwm-cb-atk-in", "jjwm-cb-sup-out", "jjwm-cb-sup-back"].forEach(function (id) {
+        document.getElementById(id).addEventListener("change", draw);
+    });
 
     // ---- zoom / pan ----
     document.getElementById("jjwm-zoom-in").onclick = function () { zoomAt(canvas.width / 2, canvas.height / 2, 1.4); };
