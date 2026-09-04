@@ -5,7 +5,10 @@
     var gold = "#d8aa45";
     var goldLight = "#f0c65d";
     var COLOR_ME = "#f0c65d";
-    var COLOR_TRIBE = "#2255cc";
+    var COLOR_TRIBE = "#1a3a8f";
+    var COLOR_ALLY = "#5bc0f8";
+    var COLOR_PNA = "#9b5bf8";
+    var COLOR_ENEMY = "#e04b4b";
     var COLOR_OTHER = "#3a3a3a";
 
     var panel = document.createElement("div");
@@ -31,6 +34,9 @@
             '<div style="position:absolute;left:10px;bottom:10px;padding:6px 8px;background:rgba(10,11,14,.85);border:1px solid rgba(216,170,69,.3);border-radius:8px;font-size:8px;line-height:14px;">' +
                 '<div><span style="display:inline-block;width:8px;height:8px;background:' + COLOR_ME + ';border-radius:2px;margin-right:4px;"></span>Eu</div>' +
                 '<div><span style="display:inline-block;width:8px;height:8px;background:' + COLOR_TRIBE + ';border-radius:2px;margin-right:4px;"></span>Minha tribo</div>' +
+                '<div><span style="display:inline-block;width:8px;height:8px;background:' + COLOR_ALLY + ';border-radius:2px;margin-right:4px;"></span>Aliada</div>' +
+                '<div><span style="display:inline-block;width:8px;height:8px;background:' + COLOR_PNA + ';border-radius:2px;margin-right:4px;"></span>PNA</div>' +
+                '<div><span style="display:inline-block;width:8px;height:8px;background:' + COLOR_ENEMY + ';border-radius:2px;margin-right:4px;"></span>Inimiga</div>' +
                 '<div><span style="display:inline-block;width:8px;height:8px;background:' + COLOR_OTHER + ';border-radius:2px;margin-right:4px;"></span>Outras</div>' +
             '</div>' +
         '</div>';
@@ -53,7 +59,7 @@
     var state = {
         minX: 0, maxX: 999, minY: 0, maxY: 999,
         scale: 1, offsetX: 0, offsetY: 0,
-        mine: [], tribe: [], other: []
+        mine: [], tribe: [], ally: [], pna: [], enemy: [], other: []
     };
 
     function fitToView() {
@@ -92,6 +98,19 @@
                 ctx.fillRect(p[0], p[1], dotOther, dotOther);
             });
 
+            var dotMid = Math.max(2, state.scale * 1.2);
+            function drawGroup(list, color) {
+                ctx.fillStyle = color;
+                list.forEach(function (v) {
+                    var p = worldToScreen(v.x, v.y);
+                    if (p[0] < -5 || p[0] > canvas.width + 5 || p[1] < -5 || p[1] > canvas.height + 5) return;
+                    ctx.fillRect(p[0] - dotMid / 2, p[1] - dotMid / 2, dotMid, dotMid);
+                });
+            }
+            drawGroup(state.pna, COLOR_PNA);
+            drawGroup(state.ally, COLOR_ALLY);
+            drawGroup(state.enemy, COLOR_ENEMY);
+
             var dotBig = Math.max(2.5, state.scale * 1.6);
             ctx.fillStyle = COLOR_TRIBE;
             state.tribe.forEach(function (v) {
@@ -113,62 +132,115 @@
 
     function fetchText(url) { return fetch(url).then(function (r) { return r.text(); }); }
 
+    function fetchDiplomacy() {
+        var villageId = "0";
+        try { if (window.game_data && game_data.village) villageId = game_data.village.id; } catch (e) {}
+        var url = "/game.php?village=" + villageId + "&screen=ally&mode=contracts";
+
+        return fetch(url, { credentials: "same-origin" }).then(function (res) { return res.text(); }).then(function (html) {
+            var doc = new DOMParser().parseFromString(html, "text/html");
+            var allyIds = [], pnaIds = [], enemyIds = [];
+            var currentSection = null;
+
+            var allNodes = doc.body.querySelectorAll("*");
+            allNodes.forEach(function (el) {
+                var ownText = "";
+                for (var c = 0; c < el.childNodes.length; c++) {
+                    if (el.childNodes[c].nodeType === 3) ownText += el.childNodes[c].textContent;
+                }
+                ownText = ownText.trim();
+
+                if (ownText && /^aliad/i.test(ownText)) { currentSection = "ally"; return; }
+                if (ownText && /pactos? de n[aã]o.?agress/i.test(ownText)) { currentSection = "pna"; return; }
+                if (ownText && /^inimig/i.test(ownText)) { currentSection = "enemy"; return; }
+
+                if (el.tagName === "A" && el.textContent.trim() === "Terminar") {
+                    var href = el.getAttribute("href") || "";
+                    var m = href.match(/[?&]id=(\d+)/);
+                    if (!m || !currentSection) return;
+                    var id = m[1];
+                    if (currentSection === "ally") allyIds.push(id);
+                    else if (currentSection === "pna") pnaIds.push(id);
+                    else if (currentSection === "enemy") enemyIds.push(id);
+                }
+            });
+
+            return { allyIds: allyIds, pnaIds: pnaIds, enemyIds: enemyIds };
+        });
+    }
+
     if (!myId) {
         statusEl.textContent = "⚠️ Não consegui identificar seu jogador (game_data.player.id ausente).";
     } else {
-        fetchText("/map/player.txt").then(function (playerText) {
-            var lines = playerText.split("\n");
-            var myAllyId = null;
-            var allyOf = {};
-            for (var i = 0; i < lines.length; i++) {
-                var line = lines[i].trim();
-                if (!line) continue;
-                var cols = line.split(",");
-                if (cols.length < 3) continue;
-                allyOf[cols[0]] = cols[2];
-                if (cols[0] === myId) myAllyId = cols[2];
-            }
+        statusEl.textContent = "🔎 Lendo diplomacia da tribo...";
 
-            statusEl.textContent = "🔎 Baixando aldeias do mundo...";
-
-            fetchText("/map/village.txt").then(function (villageText) {
-                var vLines = villageText.split("\n");
-                var mine = [], tribe = [], other = [];
-                var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-
-                for (var j = 0; j < vLines.length; j++) {
-                    var vline = vLines[j].trim();
-                    if (!vline) continue;
-                    var vcols = vline.split(",");
-                    if (vcols.length < 5) continue;
-                    var x = parseInt(vcols[2], 10);
-                    var y = parseInt(vcols[3], 10);
-                    if (isNaN(x) || isNaN(y)) continue;
-                    var pid = vcols[4];
-
-                    if (x < minX) minX = x;
-                    if (x > maxX) maxX = x;
-                    if (y < minY) minY = y;
-                    if (y > maxY) maxY = y;
-
-                    if (pid === myId) {
-                        mine.push({ x: x, y: y });
-                    } else if (pid && myAllyId && allyOf[pid] === myAllyId) {
-                        tribe.push({ x: x, y: y });
-                    } else {
-                        other.push({ x: x, y: y });
-                    }
+        fetchDiplomacy().then(function (diplo) {
+            fetchText("/map/player.txt").then(function (playerText) {
+                var lines = playerText.split("\n");
+                var myAllyId = null;
+                var allyOf = {};
+                for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i].trim();
+                    if (!line) continue;
+                    var cols = line.split(",");
+                    if (cols.length < 3) continue;
+                    allyOf[cols[0]] = cols[2];
+                    if (cols[0] === myId) myAllyId = cols[2];
                 }
 
-                state.minX = minX; state.maxX = maxX; state.minY = minY; state.maxY = maxY;
-                state.mine = mine; state.tribe = tribe; state.other = other;
+                var allySet = {}; diplo.allyIds.forEach(function (id) { allySet[id] = true; });
+                var pnaSet = {}; diplo.pnaIds.forEach(function (id) { pnaSet[id] = true; });
+                var enemySet = {}; diplo.enemyIds.forEach(function (id) { enemySet[id] = true; });
 
-                fitToView();
-                draw();
+                statusEl.textContent = "🔎 Baixando aldeias do mundo...";
 
-                statusEl.textContent = "✅ " + (mine.length + tribe.length + other.length) + " aldeias — " + mine.length + " minhas, " + tribe.length + " da tribo.";
-            }).catch(function (e) { statusEl.textContent = "❌ Erro ao baixar village.txt: " + e.message; });
-        }).catch(function (e) { statusEl.textContent = "❌ Erro ao baixar player.txt: " + e.message; });
+                fetchText("/map/village.txt").then(function (villageText) {
+                    var vLines = villageText.split("\n");
+                    var mine = [], tribe = [], ally = [], pna = [], enemy = [], other = [];
+                    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+                    for (var j = 0; j < vLines.length; j++) {
+                        var vline = vLines[j].trim();
+                        if (!vline) continue;
+                        var vcols = vline.split(",");
+                        if (vcols.length < 5) continue;
+                        var x = parseInt(vcols[2], 10);
+                        var y = parseInt(vcols[3], 10);
+                        if (isNaN(x) || isNaN(y)) continue;
+                        var pid = vcols[4];
+                        var pAllyId = pid ? allyOf[pid] : null;
+
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+
+                        if (pid === myId) {
+                            mine.push({ x: x, y: y });
+                        } else if (pAllyId && myAllyId && pAllyId === myAllyId) {
+                            tribe.push({ x: x, y: y });
+                        } else if (pAllyId && enemySet[pAllyId]) {
+                            enemy.push({ x: x, y: y });
+                        } else if (pAllyId && allySet[pAllyId]) {
+                            ally.push({ x: x, y: y });
+                        } else if (pAllyId && pnaSet[pAllyId]) {
+                            pna.push({ x: x, y: y });
+                        } else {
+                            other.push({ x: x, y: y });
+                        }
+                    }
+
+                    state.minX = minX; state.maxX = maxX; state.minY = minY; state.maxY = maxY;
+                    state.mine = mine; state.tribe = tribe; state.ally = ally; state.pna = pna; state.enemy = enemy; state.other = other;
+
+                    fitToView();
+                    draw();
+
+                    statusEl.textContent = "✅ " + (mine.length + tribe.length + ally.length + pna.length + enemy.length + other.length) + " aldeias — " +
+                        mine.length + " minhas, " + tribe.length + " da tribo, " + ally.length + " aliadas, " + pna.length + " PNA, " + enemy.length + " inimigas.";
+                }).catch(function (e) { statusEl.textContent = "❌ Erro ao baixar village.txt: " + e.message; });
+            }).catch(function (e) { statusEl.textContent = "❌ Erro ao baixar player.txt: " + e.message; });
+        }).catch(function (e) { statusEl.textContent = "❌ Erro ao ler diplomacia: " + e.message; });
     }
 
     // ---- zoom / pan ----
