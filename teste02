@@ -1,15 +1,15 @@
 (function () {
     var gold = "#d8aa45";
     var goldLight = "#f0c65d";
- 
+
     var old = document.getElementById("jj-op-strategy");
     if (old) { old.remove(); return; }
- 
+
     function inputStyle() {
         return "width:100%;box-sizing:border-box;padding:8px;color:#eee;background:#0d0f12;" +
                "border:1px solid rgba(216,170,69,.38);border-radius:8px;font-size:10px;outline:none;";
     }
- 
+
     var panel = document.createElement("div");
     panel.id = "jj-op-strategy";
     panel.style.cssText =
@@ -19,32 +19,32 @@
         "border:1px solid #8a6728;border-radius:14px;color:#eee;" +
         "font-family:-apple-system,BlinkMacSystemFont,Verdana,Arial;" +
         "box-shadow:0 14px 42px rgba(0,0,0,.74);";
- 
+
     panel.innerHTML =
         '<div id="jjos-h" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:linear-gradient(135deg,#191b1f,#090a0c 70%);border-radius:13px 13px 0 0;border-bottom:1px solid rgba(216,170,69,.45);touch-action:none;">' +
             '<div style="color:' + goldLight + ';font-size:13px;font-weight:800;">⚔️ JJ OP STRATEGY</div>' +
             '<span id="jjos-x" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:#ddd;font-size:13px;border:1px solid rgba(216,170,69,.4);border-radius:6px;background:#111318;cursor:pointer;">✕</span>' +
         '</div>' +
         '<div style="padding:10px;">' +
- 
+
             '<div style="padding:7px 8px;margin-bottom:10px;background:rgba(216,170,69,.06);border:1px solid rgba(216,170,69,.25);border-radius:8px;color:#999;font-size:9px;line-height:14px;">' +
                 '🧪 <b style="color:' + goldLight + ';">ETAPA 5</b> — busca real + concentração territorial calculada (centro, dispersão, vizinho mais próximo).' +
             '</div>' +
- 
+
             '<div style="color:#aaa;font-size:9px;margin-bottom:4px;">TAG DA TRIBO INIMIGA</div>' +
             '<input id="jjos-tag" placeholder="Ex: ENEMY" style="' + inputStyle() + '">' +
- 
+
             '<div style="color:#aaa;font-size:9px;margin:8px 0 4px;">CONTINENTE (K)</div>' +
             '<input id="jjos-k" placeholder="Ex: 55" style="' + inputStyle() + '">' +
- 
+
             '<div style="color:#aaa;font-size:9px;margin:8px 0 4px;">MINHA TRIBO (TAG) — opcional, pra calcular posição real</div>' +
             '<input id="jjos-mytag" placeholder="Ex: JJ" style="' + inputStyle() + '">' +
- 
+
             '<button id="jjos-analyze" style="width:100%;margin-top:9px;padding:9px;background:' + gold + ';color:#111;border:none;border-radius:8px;font-weight:800;font-size:11px;cursor:pointer;">🔎 ANALISAR MAPA</button>' +
- 
+
             '<div id="jjos-status" style="margin-top:9px;color:#aaa;font-size:9px;line-height:15px;"></div>' +
             '<div id="jjos-result" style="margin-top:6px;"></div>' +
- 
+
             '<div style="margin-top:14px;padding-top:10px;border-top:1px solid rgba(216,170,69,.25);">' +
                 '<div style="color:' + goldLight + ';font-size:11px;font-weight:800;margin-bottom:6px;">👑 NOBRES CADASTRADOS <span style="color:#666;font-weight:400;font-size:8px;">(Etapa 12)</span></div>' +
                 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">' +
@@ -60,7 +60,7 @@
                 '<button id="jjos-noble-reach" style="width:100%;margin-top:6px;padding:7px;background:' + gold + ';color:#111;border:none;border-radius:8px;font-size:9px;font-weight:800;cursor:pointer;">🔎 CALCULAR ALCANCE (usa a última análise)</button>' +
                 '<div id="jjos-noble-result" style="margin-top:7px;"></div>' +
             '</div>' +
- 
+
             '<div style="margin-top:14px;padding-top:10px;border-top:1px solid rgba(216,170,69,.25);">' +
                 '<div style="color:' + goldLight + ';font-size:11px;font-weight:800;margin-bottom:6px;">⚔️ IMPORTAR FULLS <span style="color:#666;font-weight:400;font-size:8px;">(Etapa 6 — dados reais da tribo)</span></div>' +
                 '<div style="color:#999;font-size:8px;margin-bottom:6px;">Usa a TAG em "Minha Tribo" acima. Busca tropas de cada membro — pode demorar alguns segundos.</div>' +
@@ -76,7 +76,7 @@
                 '<div id="jjos-fulls-status" style="margin-top:6px;color:#aaa;font-size:9px;"></div>' +
                 '<div id="jjos-fulls-result" style="margin-top:6px;max-height:220px;overflow:auto;"></div>' +
             '</div>' +
- 
+
             '<div style="margin-top:14px;padding-top:10px;border-top:1px solid rgba(216,170,69,.25);">' +
                 '<div style="color:' + goldLight + ';font-size:11px;font-weight:800;margin-bottom:6px;">🧠 SUGERIR FOCO <span style="color:#666;font-weight:400;font-size:8px;">(Etapa 11 — calculado)</span></div>' +
                 '<div style="color:#aaa;font-size:9px;margin-bottom:4px;">RAIO (campos)</div>' +
@@ -85,21 +85,21 @@
                 '<div id="jjos-focus-result" style="margin-top:7px;"></div>' +
             '</div>' +
         '</div>';
- 
+
     document.body.appendChild(panel);
     document.getElementById("jjos-x").onclick = function () { panel.remove(); };
- 
+
     function decodeName(raw) {
         try { return decodeURIComponent(raw.replace(/\+/g, " ")); } catch (e) { return raw; }
     }
- 
+
     function fetchText(url) {
         return fetch(url).then(function (res) { return res.text(); });
     }
- 
+
     var lastAnalysis = { villages: [], k: null, allyName: null };
     var lastFulls = { disponivel: [], parcial: [], naoOfensiva: [] };
- 
+
     var NOBLE_KEY = "JJOS_NOBRES";
     function loadNobles() {
         try { return JSON.parse(localStorage.getItem(NOBLE_KEY)) || []; } catch (e) { return []; }
@@ -110,7 +110,7 @@
     function distCalc(x1, y1, x2, y2) {
         return Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
     }
- 
+
     function renderNobleList() {
         var listEl = document.getElementById("jjos-noble-list");
         var nobles = loadNobles();
@@ -136,7 +136,7 @@
             };
         });
     }
- 
+
     document.getElementById("jjos-analyze").onclick = function () {
         var tag = document.getElementById("jjos-tag").value.trim();
         var k = document.getElementById("jjos-k").value.trim().replace(/[^0-9]/g, "");
@@ -144,12 +144,12 @@
         var statusEl = document.getElementById("jjos-status");
         var resultEl = document.getElementById("jjos-result");
         resultEl.innerHTML = "";
- 
+
         if (!tag) { statusEl.innerHTML = "⚠️ Digite a TAG da tribo inimiga."; return; }
         if (!k) { statusEl.innerHTML = "⚠️ Digite o continente (K)."; return; }
- 
+
         statusEl.innerHTML = "🔎 Buscando tribo \"" + tag + "\"...";
- 
+
         fetchText("/map/ally.txt").then(function (allyText) {
             var lines = allyText.split("\n");
             var allyId = null, allyName = null;
@@ -169,7 +169,7 @@
                     myAllyName = decodeName(cols[1]);
                 }
             }
- 
+
             if (!allyId) {
                 statusEl.innerHTML = "⚠️ Nenhuma tribo encontrada com a TAG \"" + tag + "\" (dados reais de /map/ally.txt).";
                 return;
@@ -178,9 +178,9 @@
                 statusEl.innerHTML = "⚠️ Sua tribo \"" + myTag + "\" não foi encontrada em /map/ally.txt. Confira a TAG.";
                 return;
             }
- 
+
             statusEl.innerHTML = "✅ Tribo: " + allyName + " [" + tag + "] (ID " + allyId + "). Buscando jogadores...";
- 
+
             fetchText("/map/player.txt").then(function (playerText) {
                 var pLines = playerText.split("\n");
                 var players = {};
@@ -197,75 +197,75 @@
                         myPlayers[pcols[0]] = decodeName(pcols[1]);
                     }
                 }
- 
+
                 var playerIds = Object.keys(players);
                 if (!playerIds.length) {
                     statusEl.innerHTML = "⚠️ Tribo encontrada, mas nenhum jogador associado (dados de /map/player.txt).";
                     return;
                 }
- 
+
                 statusEl.innerHTML = "✅ " + playerIds.length + " jogador(es) na tribo. Buscando aldeias em K" + k + "...";
- 
+
                 fetchText("/map/village.txt").then(function (villageText) {
                     var vLines = villageText.split("\n");
                     var byPlayer = {};
                     var allVillages = [];
                     var myVillages = [];
                     var totalVillages = 0;
- 
+
                     for (var m = 0; m < vLines.length; m++) {
                         var vline = vLines[m].trim();
                         if (!vline) continue;
                         var vcols = vline.split(",");
                         if (vcols.length < 5) continue;
                         var pid = vcols[4];
- 
+
                         var x2 = parseInt(vcols[2], 10);
                         var y2 = parseInt(vcols[3], 10);
                         if (isNaN(x2) || isNaN(y2)) continue;
- 
+
                         if (myPlayers[pid]) {
                             myVillages.push({ x: x2, y: y2, coord: x2 + "|" + y2, player: myPlayers[pid] });
                         }
- 
+
                         if (!players[pid]) continue;
- 
+
                         var vk = Math.floor(y2 / 100) * 10 + Math.floor(x2 / 100);
                         if (String(vk) !== k) continue;
- 
+
                         var points = parseInt(vcols[5], 10) || 0;
- 
+
                         if (!byPlayer[pid]) byPlayer[pid] = [];
                         var vObj = { coord: x2 + "|" + y2, x: x2, y: y2, points: points, player: players[pid] };
                         byPlayer[pid].push(vObj);
                         allVillages.push(vObj);
                         totalVillages++;
                     }
- 
+
                     if (!totalVillages) {
                         statusEl.innerHTML = "⚠️ Tribo " + allyName + " não tem aldeias em K" + k + " (dados reais).";
                         return;
                     }
- 
+
                     // ===== ETAPA 5: concentração territorial (calculado, não é dado real do jogo) =====
                     var sumX = 0, sumY = 0;
                     allVillages.forEach(function (v) { sumX += v.x; sumY += v.y; });
                     var centerX = sumX / allVillages.length;
                     var centerY = sumY / allVillages.length;
- 
+
                     var minX = Math.min.apply(null, allVillages.map(function (v) { return v.x; }));
                     var maxX = Math.max.apply(null, allVillages.map(function (v) { return v.x; }));
                     var minY = Math.min.apply(null, allVillages.map(function (v) { return v.y; }));
                     var maxY = Math.max.apply(null, allVillages.map(function (v) { return v.y; }));
- 
+
                     function dist(x1, y1, x2, y2) {
                         return Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
                     }
- 
+
                     var sumDistToCenter = 0;
                     allVillages.forEach(function (v) { sumDistToCenter += dist(v.x, v.y, centerX, centerY); });
                     var avgDistToCenter = sumDistToCenter / allVillages.length;
- 
+
                     var nnSum = 0;
                     allVillages.forEach(function (v) {
                         var best = Infinity;
@@ -277,16 +277,16 @@
                         if (best !== Infinity) nnSum += best;
                     });
                     var avgNearestNeighbor = allVillages.length > 1 ? nnSum / allVillages.length : 0;
- 
+
                     var concentracao = "DISPERSO";
                     if (avgDistToCenter <= 8) concentracao = "MUITO CONCENTRADO";
                     else if (avgDistToCenter <= 18) concentracao = "CONCENTRADO";
                     else if (avgDistToCenter <= 35) concentracao = "MODERADO";
- 
+
                     statusEl.innerHTML =
                         "📊 <b style='color:" + goldLight + "'>" + allyName + " [" + tag + "]</b> em K" + k + "<br>" +
                         totalVillages + " aldeia(s) — " + Object.keys(byPlayer).length + " jogador(es) com alvo nesse continente.";
- 
+
                     var ourHtml = "";
                     if (myTag) {
                         if (!myVillages.length) {
@@ -300,7 +300,7 @@
                                 var d = dist(v.x, v.y, centerX, centerY);
                                 if (d < nearestToCenterDist) { nearestToCenterDist = d; nearestToCenter = v; }
                             });
- 
+
                             allVillages.forEach(function (ev) {
                                 var best = Infinity;
                                 myVillages.forEach(function (mv) {
@@ -309,11 +309,11 @@
                                 });
                                 ev.distToUs = best;
                             });
- 
+
                             var sumDistToUs = 0;
                             allVillages.forEach(function (ev) { sumDistToUs += ev.distToUs; });
                             var avgDistToUs = sumDistToUs / allVillages.length;
- 
+
                             ourHtml =
                                 '<div style="margin-bottom:8px;padding:8px;background:rgba(216,170,69,.06);border:1px solid rgba(216,170,69,.25);border-radius:8px;font-size:9px;">' +
                                     '<div style="color:' + goldLight + ';font-weight:800;margin-bottom:4px;">🛡️ POSIÇÃO RELATIVA À NOSSA TRIBO <span style="color:#666;font-weight:400;">(calculado)</span></div>' +
@@ -323,7 +323,7 @@
                                 '</div>';
                         }
                     }
- 
+
                     var territorialHtml =
                         '<div style="margin-bottom:8px;padding:8px;background:rgba(216,170,69,.06);border:1px solid rgba(216,170,69,.25);border-radius:8px;font-size:9px;">' +
                             '<div style="color:' + goldLight + ';font-weight:800;margin-bottom:4px;">🧭 CONCENTRAÇÃO TERRITORIAL <span style="color:#666;font-weight:400;">(calculado)</span></div>' +
@@ -333,11 +333,11 @@
                             '<div style="color:#ccc;">Distância média até vizinho mais próximo: ' + avgNearestNeighbor.toFixed(1) + ' campos</div>' +
                             '<div style="color:#ccc;">Classificação: <b style="color:' + goldLight + '">' + concentracao + '</b></div>' +
                         '</div>';
- 
+
                     // ===== ETAPA 8: pontuação estratégica (calculado, PARCIAL — sem dados de tropas ainda) =====
                     var maxPoints = Math.max.apply(null, allVillages.map(function (v) { return v.points; })) || 1;
                     var maxDistToUs = myTag && allVillages.length ? Math.max.apply(null, allVillages.map(function (v) { return v.distToUs || 0; })) || 1 : 0;
- 
+
                     allVillages.forEach(function (v) {
                         var neighborCount = 0;
                         allVillages.forEach(function (o) {
@@ -347,21 +347,21 @@
                         v.neighborCount = neighborCount;
                     });
                     var maxNeighbors = Math.max.apply(null, allVillages.map(function (v) { return v.neighborCount; })) || 1;
- 
+
                     allVillages.forEach(function (v) {
                         var pointsScore = v.points / maxPoints;
                         var clusterScore = v.neighborCount / maxNeighbors;
                         var proximityScore = (myTag && maxDistToUs) ? (1 - (v.distToUs / maxDistToUs)) : 0.5;
- 
+
                         var score = (proximityScore * 0.4 + clusterScore * 0.35 + pointsScore * 0.25) * 100;
                         v.score = Math.round(score);
- 
+
                         if (v.score >= 75) v.priority = "🔴 PRIORIDADE A";
                         else if (v.score >= 50) v.priority = "🟡 PRIORIDADE B";
                         else if (v.score >= 25) v.priority = "⚪ PRESSÃO";
                         else v.priority = "👻 FAKE";
                     });
- 
+
                     var html = territorialHtml + ourHtml;
                     Object.keys(byPlayer).sort(function (a, b) { return byPlayer[b].length - byPlayer[a].length; }).forEach(function (pid) {
                         var villages = byPlayer[pid];
@@ -374,7 +374,7 @@
                             '</div>' +
                         '</div>';
                     });
- 
+
                     resultEl.innerHTML = html;
                     lastAnalysis = { villages: allVillages, k: k, allyName: allyName };
                 }).catch(function (e) {
@@ -387,20 +387,20 @@
             statusEl.innerHTML = "❌ Erro ao baixar ally.txt: " + e.message;
         });
     };
- 
+
     renderNobleList();
- 
+
     document.getElementById("jjos-noble-add").onclick = function () {
         var player = document.getElementById("jjos-noble-player").value.trim();
         var coord = document.getElementById("jjos-noble-coord").value.trim();
         var qty = parseInt(document.getElementById("jjos-noble-qty").value, 10);
         var limit = parseInt(document.getElementById("jjos-noble-limit").value, 10);
- 
+
         if (!player || !/^\d{1,3}\|\d{1,3}$/.test(coord) || !qty) {
             alert("Preencha jogador, coordenada (formato 500|500) e quantidade de nobres.");
             return;
         }
- 
+
         var nobles = loadNobles();
         nobles.push({
             player: player,
@@ -410,17 +410,17 @@
         });
         saveNobles(nobles);
         renderNobleList();
- 
+
         document.getElementById("jjos-noble-player").value = "";
         document.getElementById("jjos-noble-coord").value = "";
         document.getElementById("jjos-noble-qty").value = "";
         document.getElementById("jjos-noble-limit").value = "";
     };
- 
+
     document.getElementById("jjos-noble-reach").onclick = function () {
         var resultEl2 = document.getElementById("jjos-noble-result");
         var nobles = loadNobles();
- 
+
         if (!nobles.length) {
             resultEl2.innerHTML = '<div style="color:#d66;font-size:9px;text-align:center;">Cadastre pelo menos um nobre primeiro.</div>';
             return;
@@ -429,9 +429,9 @@
             resultEl2.innerHTML = '<div style="color:#d66;font-size:9px;text-align:center;">Rode "🔎 ANALISAR MAPA" primeiro pra ter alvos.</div>';
             return;
         }
- 
+
         var html = '<div style="color:' + goldLight + ';font-weight:800;font-size:9px;margin-bottom:5px;">Alcance contra ' + lastAnalysis.allyName + ' em K' + lastAnalysis.k + ':</div>';
- 
+
         nobles.forEach(function (n) {
             var parts = n.coord.split("|");
             var nx = parseInt(parts[0], 10), ny = parseInt(parts[1], 10);
@@ -442,7 +442,7 @@
             reachable.sort(function (a, b) {
                 return distCalc(nx, ny, a.x, a.y) - distCalc(nx, ny, b.x, b.y);
             });
- 
+
             html += '<div style="margin:4px 0;padding:6px 7px;background:rgba(15,17,21,.9);border:1px solid rgba(216,170,69,.28);border-radius:7px;font-size:9px;">' +
                 '<b style="color:' + goldLight + '">' + n.player + '</b> (' + n.coord + ', ' + n.qty + ' nobre(s)) — ' +
                 '<b>' + reachable.length + '</b> alvo(s) ao alcance' + (n.limit ? ' (≤' + n.limit + ' campos)' : '') +
@@ -452,22 +452,22 @@
                 '</div>' : '') +
             '</div>';
         });
- 
+
         resultEl2.innerHTML = html;
     };
- 
+
     document.getElementById("jjos-focus-btn").onclick = function () {
         var resultEl3 = document.getElementById("jjos-focus-result");
         var radius = parseFloat(document.getElementById("jjos-focus-radius").value) || 12;
- 
+
         if (!lastAnalysis.villages.length) {
             resultEl3.innerHTML = '<div style="color:#d66;font-size:9px;text-align:center;">Rode "🔎 ANALISAR MAPA" primeiro.</div>';
             return;
         }
- 
+
         var villages = lastAnalysis.villages;
         var best = null;
- 
+
         villages.forEach(function (candidate) {
             var within = villages.filter(function (v) { return distCalc(candidate.x, candidate.y, v.x, v.y) <= radius; });
             var playersSet = {};
@@ -481,14 +481,14 @@
                 best = { center: candidate, count: within.length, totalScore: totalScore, within: within, playersCount: playersCount };
             }
         });
- 
+
         if (!best || best.count < 2) {
             resultEl3.innerHTML = '<div style="color:#999;font-size:9px;text-align:center;">Nenhum foco relevante encontrado com esse raio.</div>';
             return;
         }
- 
+
         var avgScore = best.totalScore / best.count;
- 
+
         resultEl3.innerHTML =
             '<div style="padding:8px;background:rgba(15,17,21,.9);border:1px solid rgba(216,170,69,.4);border-radius:8px;font-size:9px;">' +
                 '<div style="color:' + goldLight + ';font-weight:800;margin-bottom:4px;">🧠 FOCO SUGERIDO</div>' +
@@ -499,7 +499,7 @@
                 '<div style="color:#ccc;">Pontuação média dos alvos: ' + avgScore.toFixed(0) + '/100</div>' +
             '</div>';
     };
- 
+
     function currentVillageId() {
         try {
             if (window.game_data && game_data.village && game_data.village.id) return game_data.village.id;
@@ -507,7 +507,7 @@
         var params = new URLSearchParams(location.search);
         return params.get("village") || "0";
     }
- 
+
     function findUnitColumnIndex(table, unitKey) {
         var headerCells = table.querySelectorAll("thead th, tr:first-child th");
         var index = -1;
@@ -526,25 +526,25 @@
         });
         return index;
     }
- 
+
     document.getElementById("jjos-fulls-btn").onclick = function () {
         var myTagInput = document.getElementById("jjos-mytag").value.trim();
         var statusEl2 = document.getElementById("jjos-fulls-status");
         var resultEl4 = document.getElementById("jjos-fulls-result");
         resultEl4.innerHTML = "";
- 
+
         var minAxe = parseInt(document.getElementById("jjos-min-axe").value, 10) || 0;
         var minLight = parseInt(document.getElementById("jjos-min-light").value, 10) || 0;
         var requireRam = document.getElementById("jjos-require-ram").checked;
         var PARTIAL_PCT = 0.7;
- 
+
         if (!myTagInput) {
             statusEl2.innerHTML = "⚠️ Preencha o campo \"Minha Tribo (TAG)\" mais acima.";
             return;
         }
- 
+
         statusEl2.innerHTML = "🔎 Buscando sua tribo \"" + myTagInput + "\"...";
- 
+
         fetchText("/map/ally.txt").then(function (allyText) {
             var lines = allyText.split("\n");
             var myAllyId2 = null, myAllyName2 = null;
@@ -559,12 +559,12 @@
                     break;
                 }
             }
- 
+
             if (!myAllyId2) {
                 statusEl2.innerHTML = "⚠️ Tribo \"" + myTagInput + "\" não encontrada em /map/ally.txt.";
                 return;
             }
- 
+
             fetchText("/map/player.txt").then(function (playerText) {
                 var pLines = playerText.split("\n");
                 var myPlayersList = [];
@@ -577,17 +577,17 @@
                         myPlayersList.push({ id: pcols[0], name: decodeName(pcols[1]) });
                     }
                 }
- 
+
                 if (!myPlayersList.length) {
                     statusEl2.innerHTML = "⚠️ Nenhum jogador encontrado na tribo " + myAllyName2 + ".";
                     return;
                 }
- 
+
                 var villageId = currentVillageId();
                 var results = { disponivel: [], parcial: [], naoOfensiva: [] };
                 var parseErrors = 0;
                 var index = 0;
- 
+
                 function processNext() {
                     if (index >= myPlayersList.length) {
                         finish();
@@ -596,45 +596,52 @@
                     var p = myPlayersList[index];
                     index++;
                     statusEl2.innerHTML = "⚔️ Buscando tropas: " + index + "/" + myPlayersList.length + " (" + p.name + ")...";
- 
+
                     var url = "/game.php?screen=ally&mode=members_troops&player_id=" + p.id + "&village=" + villageId;
- 
+
                     fetch(url, { credentials: "same-origin" })
                         .then(function (res) { return res.text(); })
                         .then(function (html) {
                             var doc = new DOMParser().parseFromString(html, "text/html");
-                            var table = doc.querySelector("table.vis");
+                            var candidateTables = doc.querySelectorAll("table.vis");
+                            var table = null;
+                            candidateTables.forEach(function (t) {
+                                if (table) return;
+                                var hRow = t.querySelector("thead tr") || t.querySelector("tr:first-child");
+                                if (hRow && hRow.querySelector("img")) table = t;
+                            });
                             if (!table) { parseErrors++; processNext(); return; }
- 
+
                             var axeIdx = findUnitColumnIndex(table, "axe");
                             var lightIdx = findUnitColumnIndex(table, "light");
                             var ramIdx = findUnitColumnIndex(table, "ram");
- 
+
                             if (axeIdx === -1 || lightIdx === -1) { parseErrors++; processNext(); return; }
- 
-                            var rows = table.querySelectorAll("tbody tr");
+
+                            var rows = table.querySelectorAll("tr");
                             rows.forEach(function (row) {
+                                if (row.querySelector("th") || row === (table.querySelector("thead tr") || table.querySelector("tr:first-child"))) return;
                                 var rowText = row.textContent || "";
                                 var coordMatch = rowText.match(/\d{1,3}\|\d{1,3}/);
                                 if (!coordMatch) return;
- 
+
                                 var cells = row.querySelectorAll("td");
                                 function cellNum(idx) {
                                     if (idx === -1 || !cells[idx]) return 0;
                                     var n = parseInt((cells[idx].textContent || "0").replace(/\D/g, ""), 10);
                                     return isNaN(n) ? 0 : n;
                                 }
- 
+
                                 var axe = cellNum(axeIdx);
                                 var light = cellNum(lightIdx);
                                 var ram = ramIdx !== -1 ? cellNum(ramIdx) : null;
- 
+
                                 var village = { player: p.name, coord: coordMatch[0], axe: axe, light: light, ram: ram };
- 
+
                                 var axePct = minAxe ? axe / minAxe : 1;
                                 var lightPct = minLight ? light / minLight : 1;
                                 var ramOk = !requireRam || (ram !== null && ram > 0);
- 
+
                                 if (axe >= minAxe && light >= minLight && ramOk) {
                                     results.disponivel.push(village);
                                 } else if ((axePct >= PARTIAL_PCT || lightPct >= PARTIAL_PCT) && (axe > 0 || light > 0)) {
@@ -643,12 +650,12 @@
                                     results.naoOfensiva.push(village);
                                 }
                             });
- 
+
                             processNext();
                         })
                         .catch(function () { parseErrors++; processNext(); });
                 }
- 
+
                 function finish() {
                     lastFulls = results;
                     var html =
@@ -659,22 +666,22 @@
                             '<div style="color:#777;">⚪ NÃO OFENSIVA: <b>' + results.naoOfensiva.length + '</b></div>' +
                             (parseErrors ? '<div style="color:#d66;margin-top:3px;">⚠️ ' + parseErrors + ' jogador(es) não puderam ser lidos (ver nota abaixo).</div>' : '') +
                         '</div>';
- 
+
                     if (results.disponivel.length) {
                         html += '<div style="color:#aaa;font-size:8px;margin:4px 0;">Disponíveis: ' +
                             results.disponivel.slice(0, 15).map(function (v) { return v.coord + " (" + v.player + ")"; }).join(" · ") +
                             (results.disponivel.length > 15 ? " · +" + (results.disponivel.length - 15) + " outras" : "") +
                         '</div>';
                     }
- 
+
                     if (parseErrors === myPlayersList.length) {
                         html += '<div style="color:#d66;font-size:8px;margin-top:5px;">⚠️ Nenhum jogador foi lido corretamente — a estrutura da tabela pode ser diferente do esperado. Me avise pra eu ajustar.</div>';
                     }
- 
+
                     statusEl2.innerHTML = "✅ Importação concluída.";
                     resultEl4.innerHTML = html;
                 }
- 
+
                 processNext();
             }).catch(function (e) {
                 statusEl2.innerHTML = "❌ Erro ao baixar player.txt: " + e.message;
@@ -683,7 +690,7 @@
             statusEl2.innerHTML = "❌ Erro ao baixar ally.txt: " + e.message;
         });
     };
- 
+
     // arrastar
     var header = document.getElementById("jjos-h");
     var sx = 0, sy = 0, iL = 0, iT = 0, dragging = false, moved = false;
