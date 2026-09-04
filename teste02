@@ -33,10 +33,13 @@
             '</div>' +
             '<div style="position:absolute;right:10px;top:10px;padding:7px 8px;background:rgba(10,11,14,.9);border:1px solid rgba(216,170,69,.4);border-radius:8px;font-size:9px;">' +
                 '<button id="jjwm-load-commands" style="width:100%;padding:6px;background:' + gold + ';color:#111;border:none;border-radius:6px;font-size:9px;font-weight:800;cursor:pointer;margin-bottom:6px;">⚔️ CARREGAR COMANDOS</button>' +
+                '<div style="color:#aaa;margin-bottom:4px;">Vel. (min/campo)</div>' +
+                '<input id="jjwm-speed" type="number" step="0.5" value="18" style="width:100%;box-sizing:border-box;padding:4px;margin-bottom:6px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:5px;font-size:9px;">' +
                 '<label style="display:flex;align-items:center;gap:5px;margin-bottom:3px;"><input type="checkbox" id="jjwm-cb-atk-out" checked>Atacando</label>' +
                 '<label style="display:flex;align-items:center;gap:5px;margin-bottom:3px;"><input type="checkbox" id="jjwm-cb-atk-in" checked>Recebendo</label>' +
                 '<label style="display:flex;align-items:center;gap:5px;margin-bottom:3px;"><input type="checkbox" id="jjwm-cb-sup-out" checked>Apoio indo</label>' +
-                '<label style="display:flex;align-items:center;gap:5px;"><input type="checkbox" id="jjwm-cb-sup-back" checked>Apoio voltando</label>' +
+                '<label style="display:flex;align-items:center;gap:5px;margin-bottom:3px;"><input type="checkbox" id="jjwm-cb-sup-back" checked>Apoio voltando</label>' +
+                '<label style="display:flex;align-items:center;gap:5px;"><input type="checkbox" id="jjwm-cb-sup-in" checked>Apoio chegando</label>' +
             '</div>' +
             '<div style="position:absolute;left:10px;bottom:10px;padding:6px 8px;background:rgba(10,11,14,.85);border:1px solid rgba(216,170,69,.3);border-radius:8px;font-size:8px;line-height:14px;">' +
                 '<div><span style="display:inline-block;width:8px;height:8px;background:' + COLOR_ME + ';border-radius:2px;margin-right:4px;"></span>Eu</div>' +
@@ -67,7 +70,7 @@
         minX: 0, maxX: 999, minY: 0, maxY: 999,
         scale: 1, offsetX: 0, offsetY: 0,
         mine: [], tribe: [], ally: [], pna: [], enemy: [], other: [],
-        lines: { atkOut: [], atkIn: [], supOut: [], supBack: [] }
+        lines: { atkOut: [], atkIn: [], supOut: [], supBack: [], supIn: [] }
     };
  
     function fitToView() {
@@ -120,34 +123,17 @@
             drawGroup(state.tribe, COLOR_TRIBE);
             drawGroup(state.mine, COLOR_ME);
  
-            var lineWidth = Math.max(1, state.scale * 0.9);
- 
-            function drawArrowHead(p1, p2, color, size) {
-                var angle = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]);
-                ctx.save();
-                ctx.shadowBlur = 0;
-                ctx.translate(p2[0], p2[1]);
-                ctx.rotate(angle);
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.lineTo(-size * 1.6, -size * 0.8);
-                ctx.lineTo(-size * 1.6, size * 0.8);
-                ctx.closePath();
-                ctx.fillStyle = color;
-                ctx.fill();
-                ctx.restore();
-            }
+            var lineWidth = Math.max(0.5, state.scale * 0.35);
  
             function drawLines(list, color, dashed, checked) {
                 if (!checked || !list.length) return;
                 ctx.lineCap = "round";
                 ctx.lineJoin = "round";
-                ctx.shadowColor = color;
-                ctx.shadowBlur = lineWidth * 1.4;
+                ctx.shadowBlur = 0;
                 ctx.strokeStyle = color;
-                ctx.globalAlpha = 0.85;
+                ctx.globalAlpha = 0.8;
                 ctx.lineWidth = lineWidth;
-                ctx.setLineDash(dashed ? [lineWidth * 2.5, lineWidth * 2] : []);
+                ctx.setLineDash(dashed ? [lineWidth * 3, lineWidth * 2.2] : []);
  
                 list.forEach(function (l) {
                     var p1 = worldToScreen(l.from.x, l.from.y);
@@ -158,21 +144,43 @@
                     ctx.stroke();
                 });
  
-                if (!dashed) {
-                    var segLen = Math.max(6, lineWidth * 2.5);
-                    list.forEach(function (l) {
-                        var p1 = worldToScreen(l.from.x, l.from.y);
-                        var p2 = worldToScreen(l.to.x, l.to.y);
-                        var dx = p2[0] - p1[0], dy = p2[1] - p1[1];
-                        if (Math.sqrt(dx * dx + dy * dy) > segLen * 1.5) {
-                            drawArrowHead(p1, p2, color, segLen * 0.6);
-                        }
-                    });
-                }
- 
                 ctx.setLineDash([]);
-                ctx.shadowBlur = 0;
                 ctx.globalAlpha = 1;
+            }
+ 
+            function drawMovingDots(list) {
+                var speedInput = document.getElementById("jjwm-speed");
+                var speed = speedInput ? parseFloat(speedInput.value) || 18 : 18;
+                var now = Date.now();
+                var dotR = Math.max(1.5, state.scale * 1.1);
+ 
+                ctx.fillStyle = "#ffe066";
+                ctx.shadowColor = "#ffe066";
+                ctx.shadowBlur = dotR * 2;
+ 
+                list.forEach(function (l) {
+                    if (!l.arrival) return;
+                    var distFields = Math.sqrt(
+                        (l.to.x - l.from.x) * (l.to.x - l.from.x) +
+                        (l.to.y - l.from.y) * (l.to.y - l.from.y)
+                    );
+                    var totalMs = distFields * speed * 60000;
+                    if (totalMs <= 0) return;
+                    var startMs = l.arrival - totalMs;
+                    var progress = (now - startMs) / totalMs;
+                    if (progress < 0 || progress > 1) return;
+ 
+                    var p1 = worldToScreen(l.from.x, l.from.y);
+                    var p2 = worldToScreen(l.to.x, l.to.y);
+                    var px = p1[0] + (p2[0] - p1[0]) * progress;
+                    var py = p1[1] + (p2[1] - p1[1]) * progress;
+ 
+                    ctx.beginPath();
+                    ctx.arc(px, py, dotR, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+ 
+                ctx.shadowBlur = 0;
             }
  
             var cbAtkOut = document.getElementById("jjwm-cb-atk-out");
@@ -180,12 +188,23 @@
             var cbSupOut = document.getElementById("jjwm-cb-sup-out");
             var cbSupBack = document.getElementById("jjwm-cb-sup-back");
  
+            var cbSupIn = document.getElementById("jjwm-cb-sup-in");
+ 
             drawLines(state.lines.atkOut, "#3ddc5a", false, cbAtkOut && cbAtkOut.checked);
             drawLines(state.lines.atkIn, "#e04b4b", false, cbAtkIn && cbAtkIn.checked);
             drawLines(state.lines.supOut, "#3ddc5a", false, cbSupOut && cbSupOut.checked);
             drawLines(state.lines.supBack, "#3ddc5a", true, cbSupBack && cbSupBack.checked);
+            drawLines(state.lines.supIn, "#5bc0f8", false, cbSupIn && cbSupIn.checked);
+ 
+            if (cbAtkOut && cbAtkOut.checked) drawMovingDots(state.lines.atkOut);
+            if (cbAtkIn && cbAtkIn.checked) drawMovingDots(state.lines.atkIn);
+            if (cbSupOut && cbSupOut.checked) drawMovingDots(state.lines.supOut);
+            if (cbSupBack && cbSupBack.checked) drawMovingDots(state.lines.supBack);
+            if (cbSupIn && cbSupIn.checked) drawMovingDots(state.lines.supIn);
         });
     }
+ 
+    setInterval(function () { draw(); }, 250);
  
     // ---- carregar dados ----
     var myId = null;
@@ -310,6 +329,17 @@
         return { x: parseInt(m[1], 10), y: parseInt(m[2], 10) };
     }
  
+    function parseArrival(text) {
+        var t = String(text || "").trim();
+        var m = t.match(/(hoje|amanh[aã])\s+[aà]s\s+(\d{1,2}):(\d{2}):(\d{2})(?::(\d{1,3}))?/i);
+        if (!m) return null;
+        var now = new Date();
+        var d = new Date(now.getFullYear(), now.getMonth(), now.getDate(),
+            parseInt(m[2], 10), parseInt(m[3], 10), parseInt(m[4], 10), m[5] ? parseInt(m[5], 10) : 0);
+        if (/amanh/i.test(m[1])) d.setDate(d.getDate() + 1);
+        return d.getTime();
+    }
+ 
     function findBiggestTable(doc) {
         var tables = doc.querySelectorAll("table.vis");
         var best = null, bestCount = 0;
@@ -344,12 +374,14 @@
                     var origin = extractCoord(cells[1].textContent);
                     if (!target || !origin) return;
  
+                    var arrival = parseArrival(cells[2] ? cells[2].textContent : "");
+ 
                     if (/^Ataque a/i.test(desc)) {
-                        atkOut.push({ from: origin, to: target });
+                        atkOut.push({ from: origin, to: target, arrival: arrival });
                     } else if (/^Apoio a/i.test(desc)) {
-                        supOut.push({ from: origin, to: target });
+                        supOut.push({ from: origin, to: target, arrival: arrival });
                     } else if (/^Retorno de/i.test(desc)) {
-                        supBack.push({ from: target, to: origin });
+                        supBack.push({ from: target, to: origin, arrival: arrival });
                     }
                 });
             }
@@ -363,7 +395,7 @@
             fetch(incomingsUrl, { credentials: "same-origin" }).then(function (r2) { return r2.text(); }).then(function (html2) {
                 var doc2 = new DOMParser().parseFromString(html2, "text/html");
                 var table2 = findBiggestTable(doc2);
-                var atkIn = [];
+                var atkIn = [], supIn = [];
  
                 if (table2) {
                     var rows2 = table2.querySelectorAll("tbody tr");
@@ -371,18 +403,24 @@
                         var cells2 = row.querySelectorAll("td");
                         if (cells2.length < 3) return;
                         var tipo = (cells2[0].textContent || "").trim();
-                        if (!/ataque/i.test(tipo)) return;
                         var destino = extractCoord(cells2[1].textContent);
                         var origem = extractCoord(cells2[2].textContent);
                         if (!destino || !origem) return;
-                        atkIn.push({ from: origem, to: destino });
+                        var arrivalIn = parseArrival(cells2[5] ? cells2[5].textContent : "");
+ 
+                        if (/ataque/i.test(tipo)) {
+                            atkIn.push({ from: origem, to: destino, arrival: arrivalIn });
+                        } else if (/suporte|apoio/i.test(tipo)) {
+                            supIn.push({ from: origem, to: destino, arrival: arrivalIn });
+                        }
                     });
                 }
  
                 state.lines.atkIn = atkIn;
+                state.lines.supIn = supIn;
                 draw();
-                statusEl.textContent = "✅ Linhas carregadas: " + atkOut.length + " atacando, " + atkIn.length + " recebendo, " +
-                    supOut.length + " apoio indo, " + supBack.length + " apoio/retorno voltando.";
+                statusEl.textContent = "✅ Linhas: " + atkOut.length + " atacando, " + atkIn.length + " recebendo, " +
+                    supOut.length + " apoio indo, " + supBack.length + " apoio/retorno voltando, " + supIn.length + " apoio chegando.";
             }).catch(function (e) { statusEl.textContent = "❌ Erro ao carregar recebidos: " + e.message; });
         }).catch(function (e) { statusEl.textContent = "❌ Erro ao carregar comandos: " + e.message; });
     }
