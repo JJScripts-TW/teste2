@@ -364,14 +364,22 @@
                         toggleBtn.style.display = "block";
                         copyBtn2.style.display = "block";
  
+                        var byPlayer = {};
+                        near.forEach(function (v) {
+                            if (!byPlayer[v.player]) byPlayer[v.player] = 0;
+                            byPlayer[v.player]++;
+                        });
+ 
+                        var playerNames = Object.keys(byPlayer).sort(function (a, b) { return byPlayer[b] - byPlayer[a]; });
+ 
                         var listHtml = "";
                         var copyLines = [myAllyName + " [" + myTag + "] a até " + radius + " campos de " + enemyAllyName + " [" + enemyTag + "]", ""];
-                        near.forEach(function (v, i) {
+                        playerNames.forEach(function (name) {
                             listHtml += '<div style="margin:3px 0;padding:6px 7px;background:rgba(15,17,21,.9);border:1px solid rgba(216,170,69,.28);border-radius:7px;font-size:9px;display:flex;justify-content:space-between;">' +
-                                '<span><b style="color:' + goldLight + '">' + v.player + '</b> — ' + v.coord + '</span>' +
-                                '<span style="color:#aaa;">' + v.dist.toFixed(1) + ' campos</span>' +
+                                '<b style="color:' + goldLight + '">' + name + '</b>' +
+                                '<span style="color:#ccc;">' + byPlayer[name] + ' aldeia(s)</span>' +
                             '</div>';
-                            copyLines.push((i + 1) + ". " + v.player + " — " + v.coord + " — " + v.dist.toFixed(1) + " campos");
+                            copyLines.push(name + " — " + byPlayer[name] + " aldeia(s)");
                         });
                         listEl.innerHTML = listHtml;
                         lastProxCopyText = copyLines.join("\n");
