@@ -43,6 +43,21 @@
             '<div id="jjfi-status" style="margin-top:9px;color:#aaa;font-size:9px;line-height:15px;"></div>' +
             '<div id="jjfi-result" style="margin-top:7px;"></div>' +
             '<button id="jjfi-copy" style="width:100%;margin-top:7px;padding:7px;background:#202329;color:#eee;border:1px solid rgba(216,170,69,.5);border-radius:8px;font-size:9px;font-weight:700;cursor:pointer;display:none;">📋 COPIAR LISTA</button>' +
+ 
+            '<div style="margin-top:14px;padding-top:10px;border-top:1px solid rgba(216,170,69,.25);">' +
+                '<div style="color:' + goldLight + ';font-size:11px;font-weight:800;margin-bottom:6px;">🎯 ALDEIAS PRÓXIMAS DO INIMIGO</div>' +
+                '<div style="color:#999;font-size:8px;margin-bottom:6px;">Usa a TAG da sua tribo acima. Compara todas as suas aldeias com todas as do inimigo.</div>' +
+                '<div style="color:#aaa;font-size:9px;margin-bottom:4px;">TRIBO INIMIGA (TAG)</div>' +
+                '<input id="jjfi-enemy-tag" placeholder="Ex: ENEMY" style="' + inputStyle() + '">' +
+                '<div style="color:#aaa;font-size:9px;margin:6px 0 4px;">RAIO (campos)</div>' +
+                '<input id="jjfi-radius" type="number" value="70" style="' + inputStyle() + '">' +
+                '<button id="jjfi-prox-btn" style="width:100%;margin-top:7px;padding:9px;background:' + gold + ';color:#111;border:none;border-radius:8px;font-weight:800;font-size:11px;cursor:pointer;">🔎 ANALISAR PROXIMIDADE</button>' +
+                '<div id="jjfi-prox-status" style="margin-top:8px;color:#aaa;font-size:9px;line-height:15px;"></div>' +
+                '<div id="jjfi-prox-summary" style="margin-top:6px;"></div>' +
+                '<button id="jjfi-prox-toggle" style="width:100%;margin-top:6px;padding:7px;background:#202329;color:#eee;border:1px solid rgba(216,170,69,.5);border-radius:8px;font-size:9px;font-weight:700;cursor:pointer;display:none;">🔽 VER LISTA DETALHADA</button>' +
+                '<div id="jjfi-prox-list" style="margin-top:6px;max-height:240px;overflow:auto;display:none;"></div>' +
+                '<button id="jjfi-prox-copy" style="width:100%;margin-top:6px;padding:7px;background:#202329;color:#eee;border:1px solid rgba(216,170,69,.5);border-radius:8px;font-size:9px;font-weight:700;cursor:pointer;display:none;">📋 COPIAR LISTA DETALHADA</button>' +
+            '</div>' +
         '</div>';
  
     document.body.appendChild(panel);
@@ -241,6 +256,151 @@
         var btn = document.getElementById("jjfi-copy");
         btn.textContent = "✅ Copiado!";
         setTimeout(function () { btn.textContent = "📋 COPIAR LISTA"; }, 1300);
+    };
+ 
+    function distCalc(x1, y1, x2, y2) {
+        return Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
+    }
+ 
+    var lastProxCopyText = "";
+ 
+    document.getElementById("jjfi-prox-btn").onclick = function () {
+        var myTag = document.getElementById("jjfi-tag").value.trim();
+        var enemyTag = document.getElementById("jjfi-enemy-tag").value.trim();
+        var radius = parseFloat(document.getElementById("jjfi-radius").value) || 70;
+        var statusEl2 = document.getElementById("jjfi-prox-status");
+        var summaryEl = document.getElementById("jjfi-prox-summary");
+        var listEl = document.getElementById("jjfi-prox-list");
+        var toggleBtn = document.getElementById("jjfi-prox-toggle");
+        var copyBtn2 = document.getElementById("jjfi-prox-copy");
+ 
+        summaryEl.innerHTML = "";
+        listEl.innerHTML = "";
+        listEl.style.display = "none";
+        toggleBtn.style.display = "none";
+        copyBtn2.style.display = "none";
+        toggleBtn.textContent = "🔽 VER LISTA DETALHADA";
+ 
+        if (!myTag || !enemyTag) {
+            statusEl2.innerHTML = "⚠️ Preencha sua TAG e a TAG da tribo inimiga.";
+            return;
+        }
+ 
+        statusEl2.innerHTML = "🔎 Buscando as duas tribos...";
+ 
+        fetchText("/map/ally.txt").then(function (allyText) {
+            var lines = allyText.split("\n");
+            var myAllyId = null, myAllyName = null, enemyAllyId = null, enemyAllyName = null;
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i].trim();
+                if (!line) continue;
+                var cols = line.split(",");
+                if (cols.length < 3) continue;
+                var tag = decodeName(cols[2]);
+                if (tag.toLowerCase() === myTag.toLowerCase()) { myAllyId = cols[0]; myAllyName = decodeName(cols[1]); }
+                if (tag.toLowerCase() === enemyTag.toLowerCase()) { enemyAllyId = cols[0]; enemyAllyName = decodeName(cols[1]); }
+            }
+ 
+            if (!myAllyId) { statusEl2.innerHTML = "⚠️ Sua tribo \"" + myTag + "\" não encontrada."; return; }
+            if (!enemyAllyId) { statusEl2.innerHTML = "⚠️ Tribo inimiga \"" + enemyTag + "\" não encontrada."; return; }
+ 
+            statusEl2.innerHTML = "🔎 Buscando jogadores das duas tribos...";
+ 
+            fetchText("/map/player.txt").then(function (playerText) {
+                var pLines = playerText.split("\n");
+                var myPlayers = {}, enemyPlayers = {};
+                for (var j = 0; j < pLines.length; j++) {
+                    var pline = pLines[j].trim();
+                    if (!pline) continue;
+                    var pcols = pline.split(",");
+                    if (pcols.length < 3) continue;
+                    if (pcols[2] === myAllyId) myPlayers[pcols[0]] = decodeName(pcols[1]);
+                    if (pcols[2] === enemyAllyId) enemyPlayers[pcols[0]] = decodeName(pcols[1]);
+                }
+ 
+                statusEl2.innerHTML = "🔎 Baixando aldeias...";
+ 
+                fetchText("/map/village.txt").then(function (villageText) {
+                    var vLines = villageText.split("\n");
+                    var myVillages = [], enemyVillages = [];
+ 
+                    for (var k = 0; k < vLines.length; k++) {
+                        var vline = vLines[k].trim();
+                        if (!vline) continue;
+                        var vcols = vline.split(",");
+                        if (vcols.length < 5) continue;
+                        var x = parseInt(vcols[2], 10);
+                        var y = parseInt(vcols[3], 10);
+                        if (isNaN(x) || isNaN(y)) continue;
+                        var pid = vcols[4];
+ 
+                        if (myPlayers[pid]) myVillages.push({ x: x, y: y, coord: x + "|" + y, player: myPlayers[pid] });
+                        if (enemyPlayers[pid]) enemyVillages.push({ x: x, y: y });
+                    }
+ 
+                    if (!myVillages.length) { statusEl2.innerHTML = "⚠️ Sua tribo não tem aldeias em /map/village.txt."; return; }
+                    if (!enemyVillages.length) { statusEl2.innerHTML = "⚠️ Tribo inimiga não tem aldeias em /map/village.txt."; return; }
+ 
+                    var near = [];
+                    myVillages.forEach(function (v) {
+                        var best = Infinity;
+                        enemyVillages.forEach(function (e) {
+                            var d = distCalc(v.x, v.y, e.x, e.y);
+                            if (d < best) best = d;
+                        });
+                        if (best <= radius) near.push({ player: v.player, coord: v.coord, dist: best });
+                    });
+ 
+                    near.sort(function (a, b) { return a.dist - b.dist; });
+ 
+                    statusEl2.innerHTML = "✅ Análise concluída.";
+                    summaryEl.innerHTML =
+                        '<div style="padding:7px;background:rgba(15,17,21,.9);border:1px solid rgba(216,170,69,.28);border-radius:8px;font-size:9px;">' +
+                            '<div style="color:' + goldLight + ';font-weight:800;">' + myAllyName + ' [' + myTag + '] × ' + enemyAllyName + ' [' + enemyTag + ']</div>' +
+                            '<div style="color:#ccc;margin-top:3px;">Aldeias suas a até <b>' + radius + '</b> campos do inimigo: <b>' + near.length + '</b> de ' + myVillages.length + ' no total</div>' +
+                        '</div>';
+ 
+                    if (near.length) {
+                        toggleBtn.style.display = "block";
+                        copyBtn2.style.display = "block";
+ 
+                        var listHtml = "";
+                        var copyLines = [myAllyName + " [" + myTag + "] a até " + radius + " campos de " + enemyAllyName + " [" + enemyTag + "]", ""];
+                        near.forEach(function (v, i) {
+                            listHtml += '<div style="margin:3px 0;padding:6px 7px;background:rgba(15,17,21,.9);border:1px solid rgba(216,170,69,.28);border-radius:7px;font-size:9px;display:flex;justify-content:space-between;">' +
+                                '<span><b style="color:' + goldLight + '">' + v.player + '</b> — ' + v.coord + '</span>' +
+                                '<span style="color:#aaa;">' + v.dist.toFixed(1) + ' campos</span>' +
+                            '</div>';
+                            copyLines.push((i + 1) + ". " + v.player + " — " + v.coord + " — " + v.dist.toFixed(1) + " campos");
+                        });
+                        listEl.innerHTML = listHtml;
+                        lastProxCopyText = copyLines.join("\n");
+                    }
+                }).catch(function (e) { statusEl2.innerHTML = "❌ Erro ao baixar village.txt: " + e.message; });
+            }).catch(function (e) { statusEl2.innerHTML = "❌ Erro ao baixar player.txt: " + e.message; });
+        }).catch(function (e) { statusEl2.innerHTML = "❌ Erro ao baixar ally.txt: " + e.message; });
+    };
+ 
+    document.getElementById("jjfi-prox-toggle").onclick = function () {
+        var listEl = document.getElementById("jjfi-prox-list");
+        var toggleBtn = document.getElementById("jjfi-prox-toggle");
+        var open = listEl.style.display !== "none";
+        listEl.style.display = open ? "none" : "block";
+        toggleBtn.textContent = open ? "🔽 VER LISTA DETALHADA" : "🔼 ESCONDER LISTA";
+    };
+ 
+    document.getElementById("jjfi-prox-copy").onclick = function () {
+        var ta = document.createElement("textarea");
+        ta.value = lastProxCopyText;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); } catch (e) {}
+        ta.remove();
+        var btn = document.getElementById("jjfi-prox-copy");
+        btn.textContent = "✅ Copiado!";
+        setTimeout(function () { btn.textContent = "📋 COPIAR LISTA DETALHADA"; }, 1300);
     };
  
     // arrastar
