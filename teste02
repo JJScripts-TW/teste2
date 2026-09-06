@@ -1,605 +1,283 @@
-(function () { const VERSION = "5.2"; const CREST = "https://raw.githubusercontent.com/JJScripts-TW/JJ/main/JJ_Logo_HD.png"; const FALLBACK_LOGO = "https://i.imgur.com/QQQqSll.png"; const COORDS = "https://media.innogamescdn.com/com_DS_BR/Scripts/Aprovados/MapCoordsPicker.js"; const PROFILE_COORDS = "https://gistcdn.githack.com/filipemiguel97/a611e6fa1ea7af8f287c037c63a7f2e7/raw/coordExtractor.js"; const STORAGE = { targets: "JJ_SCRIPTS_TARGETS", checklist: "JJ_SCRIPTS_CHECKLIST", shame: "JJ_SCRIPTS_SHAME", opName: "JJ_SCRIPTS_OP_NAME", favorites: "JJ_SCRIPTS_FAVORITES", size: "JJ_SCRIPTS_SIZE" }; const NOBLE_ACTION_KEY = "JJ_SCRIPTS_NOBLE_ACTION"; const gold = "#d8aa45"; const goldLight = "#f0c65d"; function toast(text) { const oldToast = document.getElementById("jj-toast"); if (oldToast) oldToast.remove(); const d = document.createElement("div"); d.id = "jj-toast"; d.textContent = text; d.style.cssText = ` position:fixed; right:16px; bottom:16px; z-index:1000001; padding:8px 12px; border-radius:8px; background:${gold}; color:#111; font-size:10px; font-weight:800; box-shadow:0 5px 18px rgba(0,0,0,.45); `; document.body.appendChild(d); setTimeout(() => d.remove(), 1300); } function currentVillageId() { try { if (window.game_data && game_data.village && game_data.village.id) { return game_data.village.id; } } catch (e) {} const params = new URLSearchParams(location.search); return params.get("village") || ""; } function goToMassTrain(mode) { try { sessionStorage.setItem(NOBLE_ACTION_KEY, mode); } catch (e) {} const villageId = currentVillageId(); location.href = `game.php?village=${villageId}&screen=train&mode=${mode}`; } function findNobleColumnIndex(table) { const headerCells = table.querySelectorAll("thead th, tr:first-child th"); let index = -1; headerCells.forEach((th, i) => { const unitEl = th.querySelector("[data-unit]"); const img = th.querySelector("img"); const isSnobByData = unitEl && unitEl.getAttribute("data-unit") === "snob"; const isSnobByImg = img && /unit_snob/i.test(img.getAttribute("src") || ""); if (isSnobByData || isSnobByImg) index = i; }); return index; } function fillNobleColumn(quantity) { const table = document.querySelector("#train_form table.vis") || document.querySelector("table.vis"); if (!table) return -1; const nobleIndex = findNobleColumnIndex(table); if (nobleIndex === -1) return -1; const rows = table.querySelectorAll("tbody tr"); let count = 0; rows.forEach(row => { const cells = row.querySelectorAll("td"); const cell = cells[nobleIndex]; if (!cell) return; const input = cell.querySelector('input[type="text"], input[type="number"]'); if (input && !input.disabled) { input.value = quantity; input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true })); count++; } }); return count; } function runPendingNobleAction() { let action; try { action = sessionStorage.getItem(NOBLE_ACTION_KEY); } catch (e) { return; } if (!action) return; const params = new URLSearchParams(location.search); if (params.get("screen") !== "train" || params.get("mode") !== action) return; try { sessionStorage.removeItem(NOBLE_ACTION_KEY); } catch (e) {} const tryFill = (attempt) => { const count = fillNobleColumn(1); if (count > 0) { const label = action === "mass" ? "recrutamento" : "dispensa"; toast(`👑 ${count} aldeias marcadas para ${label}. Confira e confirme.`); } else if (attempt < 10) { setTimeout(() => tryFill(attempt + 1), 300); } else { toast("⚠️ Não encontrei o campo de Nobre. Confira manualmente."); } }; tryFill(0); } runPendingNobleAction(); const old = document.getElementById("jjm"); if (old) { old.remove(); return; } function loadJSON(key, fallback) { try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch (e) { return fallback; } } function saveJSON(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {} } function escapeHTML(value) { return String(value == null ? "" : value) .replace(/&/g, "&amp;") .replace(/</g, "&lt;") .replace(/>/g, "&gt;") .replace(/\"/g, "&quot;") .replace(/'/g, "&#039;"); } function extractCoords(text) { const matches = String(text || "").match(/\b\d{1,3}\|\d{1,3}\b/g) || []; return [...new Set(matches)]; } function normalizeNames(text) { return [...new Set( String(text || "") .split(/\r?\n|,|;/) .map(x => x.trim()) .filter(Boolean) )]; } function slugify(text) { return String(text) .toLowerCase() .normalize("NFD").replace(/[\u0300-\u036f]/g, "") .replace(/[^a-z0-9]+/g, "-") .replace(/(^-|-$)/g, ""); } function fallbackCopy(text) { const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); toast("Copiado"); } catch (e) { alert(text); } ta.remove(); } function copyText(text) { const value = String(text || ""); if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(value) .then(() => toast("Copiado")) .catch(() => fallbackCopy(value)); } else { fallbackCopy(value); } } function inputStyle() { return ` width:100%; box-sizing:border-box; padding:8px; color:#eee; background:#0d0f12; border:1px solid rgba(216,170,69,.38); border-radius:8px; font-size:10px; outline:none; `; } function textareaStyle() { return inputStyle() + `min-height:105px; resize:vertical; font-family:monospace;`; } function loadFavorites() { return loadJSON(STORAGE.favorites, []); } function isFavorite(id) { return loadFavorites().includes(id); } function toggleFavorite(id) { let favs = loadFavorites(); favs = favs.includes(id) ? favs.filter(x => x !== id) : [...favs, id]; saveJSON(STORAGE.favorites, favs); } const REGISTRY = new Map(); let currentCategory = ""; const panel = document.createElement("div"); panel.id = "jjm"; panel.style.cssText = ` position:fixed; z-index:999999; top:55px; right:8px; width:345px; max-width:92vw; max-height:84vh; overflow:auto; box-sizing:border-box; background: radial-gradient(circle at 85% 25%, rgba(216,170,69,.09), transparent 35%), linear-gradient(145deg,#17191d 0%,#08090c 52%,#121419 100%); border:1px solid #8a6728; border-radius:16px; color:#eee; font-family:-apple-system,BlinkMacSystemFont,Verdana,Arial; box-shadow:0 14px 42px rgba(0,0,0,.74),0 0 15px rgba(216,170,69,.07); `; panel.innerHTML = ` <div style="position:absolute;inset:0;overflow:hidden;pointer-events:none;border-radius:16px;z-index:0;"> <img id="jj-watermark" src="${CREST}" style="position:absolute;width:210px;height:210px;right:-82px;top:175px;object-fit:cover;border-radius:50%;opacity:.06;filter:brightness(.65);"> </div> <div id="jjh" style="position:relative;z-index:3;display:flex;align-items:center;justify-content:center;min-height:78px;padding:10px;box-sizing:border-box;background:radial-gradient(circle at 50% 35%,rgba(216,170,69,.10),transparent 55%),linear-gradient(135deg,#191b1f,#090a0c 70%);border-radius:15px 15px 0 0;border-bottom:1px solid rgba(216,170,69,.45);touch-action:none;"> <div style="width:64px;height:64px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#050607;border:1.5px solid rgba(216,170,69,.75);overflow:hidden;box-shadow:0 0 14px rgba(216,170,69,.18);"> <img id="jj-logo" src="${CREST}" style="width:60px;height:60px;object-fit:cover;border-radius:50%;"> </div> <span id="jjx" style="position:absolute;right:8px;top:8px;display:flex;align-items:center;justify-content:center;width:26px;height:26px;color:#ddd;font-size:14px;border:1px solid rgba(216,170,69,.4);border-radius:7px;background:#111318;cursor:pointer;">✕</span> </div> <div style="position:relative;z-index:2;padding:9px 9px 0;"> <div style="position:relative;"> <input id="jj-search" placeholder="Buscar ferramenta..." style=" width:100%; box-sizing:border-box; padding:10px 12px 10px 34px; color:#eee; background:#0d0f12; border:1px solid rgba(216,170,69,.4); border-radius:10px; font-size:11px; outline:none; "> <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:${gold};font-size:12px;">🔎</span> </div> </div> <div id="jjc" style="position:relative;z-index:2;padding:9px;"></div> <div style="position:relative;z-index:2;padding:1px 9px 9px;text-align:center;color:#9c7939;font-size:7px;font-weight:700;letter-spacing:1px;">─ DISCIPLINA • ESTRATÉGIA • UNIÃO ─ v${VERSION} ─</div> <div id="jj-resize" title="Arraste para redimensionar" style="position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;z-index:6;touch-action:none;"><div style="position:absolute;right:4px;bottom:4px;width:10px;height:10px;border-right:2px solid rgba(216,170,69,.6);border-bottom:2px solid rgba(216,170,69,.6);border-radius:0 0 3px 0;"></div></div> `; document.body.appendChild(panel); let content = document.getElementById("jjc"); const logo = document.getElementById("jj-logo"); const watermark = document.getElementById("jj-watermark"); logo.onerror = function () { this.onerror = null; this.src = FALLBACK_LOGO; }; watermark.onerror = function () { this.onerror = null; this.src = FALLBACK_LOGO; }; document.getElementById("jjx").onclick = function (e) { e.preventDefault(); e.stopPropagation(); panel.remove(); }; function run(url) { panel.remove(); $.getScript(url).fail(function () { alert("JJ Scripts\n\nNão foi possível carregar esta ferramenta.\n\nO script pode estar offline, desatualizado ou exigir outra tela."); }); } function renderActionRow(id, icon, label, fn) { const row = document.createElement("div"); row.style.cssText = ` display:flex; align-items:center; gap:8px; width:100%; box-sizing:border-box; padding:8px 9px; margin:3px 0; background:linear-gradient(145deg,rgba(31,34,40,.96),rgba(15,17,21,.97)); border:1px solid rgba(120,94,37,.68); border-radius:10px; cursor:pointer; transition:transform .1s ease; `; const fav = isFavorite(id); row.innerHTML = ` <div style="width:30px;height:30px;flex:none;border-radius:50%;background:radial-gradient(circle at 35% 30%,#3a2c0f,#0d0f12 75%);border:1px solid ${gold};display:flex;align-items:center;justify-content:center;font-size:15px;">${icon}</div> <div style="flex:1;font-size:10px;font-weight:600;color:#eee;">${label}</div> <span data-fav-star style="font-size:14px;color:${fav ? goldLight : "#555"};padding:2px 4px;">${fav ? "★" : "☆"}</span> `; row.onmousedown = () => row.style.transform = "scale(.98)"; row.onmouseup = () => row.style.transform = "scale(1)"; row.onmouseleave = () => row.style.transform = "scale(1)"; row.addEventListener("click", function (e) { if (e.target.closest("[data-fav-star]")) return; fn(); }); const star = row.querySelector("[data-fav-star]"); star.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); toggleFavorite(id); const nowFav = isFavorite(id); star.textContent = nowFav ? "★" : "☆"; star.style.color = nowFav ? goldLight : "#555"; }); content.appendChild(row); } function button(name, fn) { const parts = String(name).split(" "); const icon = parts.shift(); const label = parts.join(" ") || name; const id = currentCategory + ":" + slugify(label); if (!REGISTRY.has(id)) { REGISTRY.set(id, { id, icon, label, category: currentCategory, fn }); } renderActionRow(id, icon, label, fn); } function actionRow(items) { const row = document.createElement("div"); row.style.cssText = `display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-top:7px;`; items.forEach(item => { const b = document.createElement("button"); b.innerHTML = item.name; b.style.cssText = ` padding:7px 8px;color:#eee;background:linear-gradient(145deg,#202329,#101216); border:1px solid rgba(216,170,69,.5);border-radius:8px; font-size:9px;font-weight:700;cursor:pointer; `; b.onclick = function (e) { e.preventDefault(); e.stopPropagation(); item.fn(); }; row.appendChild(b); }); content.appendChild(row); } function title(icon, name, subtitle) { content.innerHTML = ` <div style="text-align:left;margin:1px 2px 8px;padding:6px 7px;border-radius:8px;background:linear-gradient(90deg,rgba(216,170,69,.07),transparent);border-left:2px solid ${gold};"> <div style="color:${goldLight};font-size:14px;font-weight:800;">${icon} ${name}</div> <div style="color:#777;font-size:7px;margin-top:2px;letter-spacing:.5px;">${subtitle || "JJ SCRIPTS • COMMAND CENTER"}</div> </div> `; } function separator(text) { const d = document.createElement("div"); d.innerHTML = text; d.style.cssText = `color:#9f7b37;font-size:8px;font-weight:800;letter-spacing:.8px;margin:10px 4px 4px;text-align:left;`; content.appendChild(d); } function back(fn) { const b = document.createElement("button"); b.innerHTML = "‹ VOLTAR"; b.style.cssText = `width:100%;box-sizing:border-box;margin-top:8px;padding:8px;background:#101216;border:1px solid rgba(216,170,69,.3);border-radius:9px;color:#aaa;font-size:10px;font-weight:700;cursor:pointer;`; b.onclick = function (e) { e.preventDefault(); e.stopPropagation(); setTimeout(fn || home, 0); }; content.appendChild(b); } function home() { const searchInput = document.getElementById("jj-search"); if (searchInput) searchInput.value = ""; content.innerHTML = `<div id="jjgrid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;width:100%;box-sizing:border-box;"></div>`; const grid = document.getElementById("jjgrid"); function menuButton(icon, name, fn, full) { const b = document.createElement("button"); b.style.cssText = ` box-sizing:border-box;grid-column:${full ? "1 / -1" : "auto"};width:100%; height:${full ? "50px" : "68px"};padding:6px 4px;margin:0; background:linear-gradient(145deg,#202329,#0d0f12); border:1px solid rgba(216,170,69,.6);border-radius:12px;color:#eee; text-align:center;cursor:pointer;display:flex; ${full ? "flex-direction:row;align-items:center;justify-content:center;gap:8px;" : "flex-direction:column;align-items:center;justify-content:center;"} `; b.innerHTML = ` <div style="width:${full ? "26px" : "34px"};height:${full ? "26px" : "34px"};flex:none;border-radius:50%;background:radial-gradient(circle at 35% 30%,#3a2c0f,#0d0f12 75%);border:1px solid ${gold};display:flex;align-items:center;justify-content:center;font-size:${full ? "13px" : "16px"};">${icon}</div> <span style="font-size:9px;font-weight:800;${full ? "" : "margin-top:4px;"}">${name}</span> `; b.onclick = function (e) { e.preventDefault(); e.stopPropagation(); setTimeout(fn, 0); }; grid.appendChild(b); } menuButton("🎯", "CENTRAL OP", opCenter); menuButton("⚔️", "ATAQUE", attack); menuButton("🛡️", "DEFESA", defense); menuButton("👑", "LIDERANÇA", leadership); menuButton("🏘️", "ALDEIAS", villages); menuButton("📦", "RECURSOS", resources); menuButton("👥", "TROPAS", troops); menuButton("🔎", "INTEL", intel); menuButton("🗺️", "MAPA MUNDIAL", openWorldMap); menuButton("⭐", "FAVORITOS", favorites, true); } function favorites() { currentCategory = "FAVORITOS"; title("⭐", "FAVORITOS", "SEUS ATALHOS RÁPIDOS"); const favs = loadFavorites(); const entries = favs.map(id => REGISTRY.get(id)).filter(Boolean); if (!entries.length) { content.insertAdjacentHTML("beforeend", ` <div style="padding:15px 10px;text-align:center;color:#999;font-size:10px;line-height:16px;"> ⭐ Você ainda não marcou nenhum favorito.<br><br> Toque na estrela ☆ ao lado de qualquer ferramenta pra ela aparecer aqui. </div> `); } else { entries.forEach(e => renderActionRow(e.id, e.icon, e.label, e.fn)); } back(); } function renderSearchResults(term) { const t = term.trim().toLowerCase(); content.innerHTML = ""; const results = [...REGISTRY.values()].filter(e => e.label.toLowerCase().includes(t) || e.category.toLowerCase().includes(t) ); if (!results.length) { content.innerHTML = `<div style="padding:20px 10px;text-align:center;color:#777;font-size:10px;">Nada encontrado para "${escapeHTML(term)}".</div>`; back(); return; } separator(`🔎 RESULTADOS • ${results.length}`); results.forEach(e => renderActionRow(e.id, e.icon, e.label, e.fn)); back(); } function opCenter() { currentCategory = "CENTRAL OP"; title("🎯", "CENTRAL OP", "PLANEJAMENTO • ORGANIZAÇÃO • INTEL"); separator("⚡ JJ TOOLS • NATIVO"); button("🎯 Gerenciador de Alvos", targetManager); button("✅ Checklist da OP", opChecklist); button("🔥 Muro da Vergonha", shameWall); button("📝 Gerador de BBCode", bbcodeGenerator); button("📍 Organizador de Coordenadas", coordOrganizer); button("📤 Exportar Operação", exportOperation); separator("📋 PLANEJAMENTO"); button("🎯 Planejador Individual", function () { run("https://twscripts.dev/scripts/singleVillagePlanner.js"); }); button("⚔️ Planejador em Massa", function () { run("https://twscripts.dev/scripts/massCommandTimer.js"); }); button("⚔️ Planejador em Massa 2", function () { run("https://twscripts.dev/scripts/massAttackPlanner.js"); }); button("📋 Planejador", function () { run("https://twdevtools.github.io/approved/scripts/planner.js"); }); button("🎭 Gerador de Fakes", function () { run("https://twscripts.dev/scripts/fakeScriptGenerator.js"); }); separator("🗺️ MAPA / COORDENADAS"); button("📍 Coletor de Coordenadas", function () { run(COORDS); }); button("👤 Coordenadas do Perfil", function () { run(PROFILE_COORDS); }); button("🏰 Aldeias da Front", function () { run("https://twscripts.dev/scripts/findFrontlineVillages.js"); }); button("🧱 Frontline Stacks", function () { run("https://twscripts.dev/scripts/frontlineStacks.js"); }); button("🗼 Watchtower Plotter", function () { run("https://shinko-to-kuma.com/scripts/watchTower.js"); }); separator("⚔️ COMANDOS"); button("📤 Ataques Enviados do Player", function () { run("https://twscripts.dev/scripts/getIncsForPlayer.js"); }); button("👀 Visão Geral de Ataques", function () { window.NOBLE_GAP = 100; window.FORMAT = "%unit% | %player% | %sent%"; run("https://twscripts.dev/scripts/incomingsOverview.js"); }); separator("👑 TRIBO"); button("👑 Overwatch", function () { run("https://shinko-to-kuma.com/scripts/overwatch.js"); }); button("👥 Calculadora da Tribo", function () { run("https://shinko-to-kuma.com/scripts/tribeMembersTroopCalculator.js"); }); button("📈 Tribe Stats", function () { run("https://shinko-to-kuma.com/scripts/tribeStats.js"); }); back(); } function coordOrganizer() { title("📍", "ORGANIZADOR", "EXTRAIR • LIMPAR • REMOVER DUPLICADAS"); content.insertAdjacentHTML("beforeend", ` <textarea id="jj-coord-input" placeholder="Cole aqui qualquer texto contendo coordenadas..." style="${textareaStyle()}"></textarea> <div id="jj-coord-status" style="margin-top:7px;padding:7px;color:#aaa;background:#0b0d10;border-radius:7px;font-size:9px;text-align:center;">Cole os dados acima.</div> <textarea id="jj-coord-output" readonly placeholder="Resultado..." style="${textareaStyle()}margin-top:7px;"></textarea> `); function organize(mode) { const coords = extractCoords(document.getElementById("jj-coord-input").value); let out = coords.join(" "); if (mode === "lines") out = coords.join("\n"); if (mode === "number") out = coords.map((c, i) => `${i + 1}. ${c}`).join("\n"); document.getElementById("jj-coord-output").value = out; document.getElementById("jj-coord-status").innerHTML = `📍 <b>${coords.length}</b> coordenadas únicas`; } actionRow([ { name: "🧹 ORGANIZAR", fn: () => organize("space") }, { name: "⬇️ UMA POR LINHA", fn: () => organize("lines") }, { name: "🔢 NUMERAR", fn: () => organize("number") }, { name: "📋 COPIAR", fn: () => copyText(document.getElementById("jj-coord-output").value) } ]); back(opCenter); } function targetManager() { title("🎯", "GERENCIADOR DE ALVOS", "CADASTRAR • ORGANIZAR • EXPORTAR"); const targets = loadJSON(STORAGE.targets, []); const opName = localStorage.getItem(STORAGE.opName) || ""; content.insertAdjacentHTML("beforeend", ` <input id="jj-op-name" placeholder="Nome da OP" value="${escapeHTML(opName)}" style="${inputStyle()}"> <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px;"> <input id="jj-target-coord" placeholder="518|447" style="${inputStyle()}"> <select id="jj-target-priority" style="${inputStyle()}"> <option value="NORMAL">🟢 Normal</option> <option value="MEDIA">🟠 Média</option> <option value="ALTA">🔴 Alta</option> </select> </div> <input id="jj-target-player" placeholder="Jogador / alvo" style="${inputStyle()}margin-top:5px;"> <input id="jj-target-note" placeholder="Observação" style="${inputStyle()}margin-top:5px;"> `); actionRow([ { name: "➕ ADICIONAR", fn: function () { const raw = document.getElementById("jj-target-coord").value.trim(); const coord = extractCoords(raw)[0]; if (!coord) return alert("Digite uma coordenada válida."); const current = loadJSON(STORAGE.targets, []); current.push({ id: Date.now() + Math.random(), coord, player: document.getElementById("jj-target-player").value.trim(), priority: document.getElementById("jj-target-priority").value, note: document.getElementById("jj-target-note").value.trim() }); saveJSON(STORAGE.targets, current); localStorage.setItem(STORAGE.opName, document.getElementById("jj-op-name").value.trim()); targetManager(); } }, { name: "📍 IMPORTAR COORDS", fn: function () { const text = prompt("Cole as coordenadas:"); if (!text) return; const coords = extractCoords(text); const current = loadJSON(STORAGE.targets, []); const existing = new Set(current.map(x => x.coord)); coords.forEach(coord => { if (!existing.has(coord)) { current.push({ id: Date.now() + Math.random(), coord, player: "", priority: "NORMAL", note: "" }); existing.add(coord); } }); saveJSON(STORAGE.targets, current); targetManager(); } } ]); separator(`🎯 ALVOS CADASTRADOS • ${targets.length}`); const list = document.createElement("div"); if (!targets.length) { list.innerHTML = `<div style="padding:13px;text-align:center;color:#777;font-size:9px;">Nenhum alvo cadastrado.</div>`; } else { targets.forEach((target, index) => { const icon = target.priority === "ALTA" ? "🔴" : target.priority === "MEDIA" ? "🟠" : "🟢"; const item = document.createElement("div"); item.style.cssText = `margin:4px 0;padding:7px;background:rgba(15,17,21,.9);border:1px solid rgba(216,170,69,.28);border-radius:8px;font-size:9px;`; item.innerHTML = ` <div style="display:flex;align-items:center;gap:6px;"> <b style="color:${goldLight};">#${index + 1}</b> <b>${escapeHTML(target.coord)}</b> <span>${icon}</span> <span data-remove-target="${target.id}" style="margin-left:auto;color:#d66;cursor:pointer;">✕</span> </div> ${target.player ? `<div style="color:#aaa;margin-top:3px;">👤 ${escapeHTML(target.player)}</div>` : ""} ${target.note ? `<div style="color:#777;margin-top:2px;">📝 ${escapeHTML(target.note)}</div>` : ""} `; list.appendChild(item); }); } content.appendChild(list); list.querySelectorAll("[data-remove-target]").forEach(el => { el.onclick = function () { const id = String(this.getAttribute("data-remove-target")); saveJSON(STORAGE.targets, loadJSON(STORAGE.targets, []).filter(x => String(x.id) !== id)); targetManager(); }; }); actionRow([ { name: "📝 COPIAR BBCode", fn: () => copyText(buildTargetsBBCode()) }, { name: "🗑️ LIMPAR ALVOS", fn: function () { if (confirm("Apagar todos os alvos cadastrados?")) { saveJSON(STORAGE.targets, []); targetManager(); } } } ]); back(opCenter); } function buildTargetsBBCode() { const targets = loadJSON(STORAGE.targets, []); const opName = localStorage.getItem(STORAGE.opName) || "OPERAÇÃO"; let text = `[b]🎯 ${opName}[/b]\n\n`; targets.forEach((target, index) => { const icon = target.priority === "ALTA" ? "🔴" : target.priority === "MEDIA" ? "🟠" : "🟢"; text += `${index + 1}. [coord]${target.coord}[/coord] ${icon}`; if (target.player) text += ` - ${target.player}`; if (target.note) text += ` - ${target.note}`; text += "\n"; }); text += `\n[b]Total:[/b] ${targets.length} alvos`; return text; } function checkButtonHTML(id, field, label, active) { return `<button data-check data-id="${id}" data-field="${field}" style="padding:6px 3px;border:1px solid ${active ? gold : "#444"};border-radius:6px;background:${active ? "rgba(216,170,69,.22)" : "#15171b"};color:${active ? goldLight : "#777"};cursor:pointer;">${label}</button>`; } function opChecklist() { title("✅", "CHECKLIST DA OP", "PARTICIPAÇÃO • FULL • FAKE • NOBRE"); const data = loadJSON(STORAGE.checklist, []); content.insertAdjacentHTML("beforeend", ` <input id="jj-check-player" placeholder="Nome do jogador" style="${inputStyle()}"> <input id="jj-check-target" placeholder="Alvo / coordenada" style="${inputStyle()}margin-top:5px;"> `); actionRow([ { name: "➕ ADICIONAR", fn: function () { const player = document.getElementById("jj-check-player").value.trim(); if (!player) return alert("Digite o nome do jogador."); const current = loadJSON(STORAGE.checklist, []); current.push({ id: Date.now() + Math.random(), player, target: document.getElementById("jj-check-target").value.trim(), confirmed: false, full: false, fake: false, noble: false }); saveJSON(STORAGE.checklist, current); opChecklist(); } }, { name: "📋 COLAR LISTA", fn: function () { const text = prompt("Cole os nomes, um por linha:"); if (!text) return; const names = normalizeNames(text); const current = loadJSON(STORAGE.checklist, []); const existing = new Set(current.map(x => x.player.toLowerCase())); names.forEach(name => { if (!existing.has(name.toLowerCase())) { current.push({ id: Date.now() + Math.random(), player: name, target: "", confirmed: false, full: false, fake: false, noble: false }); existing.add(name.toLowerCase()); } }); saveJSON(STORAGE.checklist, current); opChecklist(); } } ]); separator(`👥 JOGADORES • ${data.length}`); const list = document.createElement("div"); if (!data.length) { list.innerHTML = `<div style="padding:13px;text-align:center;color:#777;font-size:9px;">Nenhum jogador adicionado.</div>`; } else { data.forEach(item => { const row = document.createElement("div"); row.style.cssText = `margin:4px 0;padding:7px;background:#0d0f12;border:1px solid rgba(216,170,69,.28);border-radius:8px;font-size:9px;`; row.innerHTML = ` <div style="display:flex;align-items:center;"> <b style="color:${goldLight};">${escapeHTML(item.player)}</b> <span data-delete-check="${item.id}" style="margin-left:auto;color:#d66;cursor:pointer;">✕</span> </div> ${item.target ? `<div style="color:#888;margin-top:2px;">🎯 ${escapeHTML(item.target)}</div>` : ""} <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px;"> ${checkButtonHTML(item.id, "confirmed", "✓", item.confirmed)} ${checkButtonHTML(item.id, "full", "⚔️", item.full)} ${checkButtonHTML(item.id, "fake", "🎭", item.fake)} ${checkButtonHTML(item.id, "noble", "👑", item.noble)} </div> `; list.appendChild(row); }); } content.appendChild(list); list.querySelectorAll("[data-check]").forEach(el => { el.onclick = function () { const id = String(this.getAttribute("data-id")); const field = this.getAttribute("data-field"); const current = loadJSON(STORAGE.checklist, []); current.forEach(x => { if (String(x.id) === id) x[field] = !x[field]; }); saveJSON(STORAGE.checklist, current); opChecklist(); }; }); list.querySelectorAll("[data-delete-check]").forEach(el => { el.onclick = function () { const id = String(this.getAttribute("data-delete-check")); saveJSON(STORAGE.checklist, loadJSON(STORAGE.checklist, []).filter(x => String(x.id) !== id)); opChecklist(); }; }); actionRow([ { name: "📋 COPIAR RESUMO", fn: () => copyText(buildChecklistText()) }, { name: "🗑️ LIMPAR", fn: function () { if (confirm("Limpar todo o checklist?")) { saveJSON(STORAGE.checklist, []); opChecklist(); } } } ]); back(opCenter); } function buildChecklistText() { const data = loadJSON(STORAGE.checklist, []); let text = "✅ CHECKLIST DA OP\n\n"; data.forEach((x, index) => { text += `${index + 1}. ${x.player} | ${x.confirmed ? "✅" : "❌"} CONF | ${x.full ? "✅" : "❌"} FULL | ${x.fake ? "✅" : "❌"} FAKE | ${x.noble ? "✅" : "❌"} NOBRE\n`; }); return text; } function shameWall() { title("🔥", "MURO DA VERGONHA", "COMPARAR MEMBROS • PARTICIPAÇÃO"); const saved = loadJSON(STORAGE.shame, { members: "", participants: "" }); content.insertAdjacentHTML("beforeend", ` <div style="color:#aaa;font-size:9px;margin-bottom:4px;">MEMBROS DA TRIBO</div> <textarea id="jj-shame-members" placeholder="Um nome por linha" style="${textareaStyle()}">${escapeHTML(saved.members)}</textarea> <div style="color:#aaa;font-size:9px;margin:8px 0 4px;">PARTICIPARAM</div> <textarea id="jj-shame-participants" placeholder="Um nome por linha" style="${textareaStyle()}">${escapeHTML(saved.participants)}</textarea> <div id="jj-shame-result" style="margin-top:8px;"></div> `); function calculate() { const membersText = document.getElementById("jj-shame-members").value; const participantsText = document.getElementById("jj-shame-participants").value; saveJSON(STORAGE.shame, { members: membersText, participants: participantsText }); const members = normalizeNames(membersText); const participants = normalizeNames(participantsText); const set = new Set(participants.map(x => x.toLowerCase())); const missing = members.filter(x => !set.has(x.toLowerCase())); const participated = members.length - missing.length; const percent = members.length ? ((participated / members.length) * 100).toFixed(1) : "0.0"; document.getElementById("jj-shame-result").innerHTML = ` <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:7px;"> <div style="${statStyle()}"><b>${members.length}</b><span>Membros</span></div> <div style="${statStyle()}"><b>${participated}</b><span>Participaram</span></div> <div style="${statStyle()}"><b>${percent}%</b><span>Participação</span></div> </div> <textarea id="jj-shame-output" readonly style="${textareaStyle()}">${escapeHTML(missing.join("\n"))}</textarea> <div style="color:#a77;font-size:9px;margin-top:5px;text-align:center;">❌ ${missing.length} sem participação</div> `; return { missing, percent }; } actionRow([ { name: "🔥 GERAR MURO", fn: calculate }, { name: "📋 COPIAR NOMES", fn: () => copyText(calculate().missing.join("\n")) }, { name: "📝 COPIAR BBCode", fn: function () { const data = calculate(); let text = "[b]🔥 MURO DA VERGONHA[/b]\n\n"; data.missing.forEach(name => { text += `❌ ${name}\n`; }); text += `\n[b]Participação:[/b] ${data.percent}%`; copyText(text); } }, { name: "🗑️ LIMPAR", fn: function () { if (confirm("Limpar os dados do Muro da Vergonha?")) { saveJSON(STORAGE.shame, { members: "", participants: "" }); shameWall(); } } } ]); back(opCenter); } function statStyle() { return `display:flex;flex-direction:column;padding:7px 3px;text-align:center;color:#eee;background:#101216;border:1px solid rgba(216,170,69,.28);border-radius:7px;font-size:8px;`; } function bbcodeGenerator() { title("📝", "GERADOR BBCode", "COORDENADAS • LISTA • SPOILER"); content.insertAdjacentHTML("beforeend", ` <textarea id="jj-bb-input" placeholder="Cole coordenadas ou texto..." style="${textareaStyle()}"></textarea> <textarea id="jj-bb-output" readonly placeholder="BBCode..." style="${textareaStyle()}margin-top:7px;"></textarea> `); actionRow([ { name: "📍 COORDS", fn: function () { const coords = extractCoords(document.getElementById("jj-bb-input").value); document.getElementById("jj-bb-output").value = coords.map(c => `[coord]${c}[/coord]`).join("\n"); } }, { name: "🔢 NUMERADO", fn: function () { const coords = extractCoords(document.getElementById("jj-bb-input").value); document.getElementById("jj-bb-output").value = coords.map((c, i) => `${i + 1}. [coord]${c}[/coord]`).join("\n"); } }, { name: "📦 SPOILER", fn: function () { const output = document.getElementById("jj-bb-output"); const current = output.value || document.getElementById("jj-bb-input").value; output.value = `[spoiler=ALVOS]\n${current}\n[/spoiler]`; } }, { name: "📋 COPIAR", fn: () => copyText(document.getElementById("jj-bb-output").value) } ]); back(opCenter); } function exportOperation() { title("📤", "EXPORTAR OPERAÇÃO", "RESUMO COMPLETO"); const targets = loadJSON(STORAGE.targets, []); const checklist = loadJSON(STORAGE.checklist, []); const opName = localStorage.getItem(STORAGE.opName) || "OPERAÇÃO"; const active = checklist.filter(x => x.confirmed || x.full || x.fake || x.noble).length; let output = `🎯 ${opName}\n\nALVOS: ${targets.length}\nJOGADORES CHECKLIST: ${checklist.length}\nCOM PARTICIPAÇÃO: ${active}\n\n=== ALVOS ===\n`; targets.forEach((x, i) => { output += `${i + 1}. ${x.coord}`; if (x.player) output += ` - ${x.player}`; if (x.note) output += ` - ${x.note}`; output += "\n"; }); output += "\n=== CHECKLIST ===\n"; checklist.forEach(x => { output += `${x.player} | ${x.confirmed ? "CONF✅" : "CONF❌"} | ${x.full ? "FULL✅" : "FULL❌"} | ${x.fake ? "FAKE✅" : "FAKE❌"} | ${x.noble ? "NOBRE✅" : "NOBRE❌"}\n`; }); content.insertAdjacentHTML("beforeend", `<textarea id="jj-export-output" readonly style="${textareaStyle()}min-height:240px;">${escapeHTML(output)}</textarea>`); actionRow([ { name: "📋 COPIAR TEXTO", fn: () => copyText(document.getElementById("jj-export-output").value) }, { name: "📝 COPIAR BBCode", fn: () => copyText(buildTargetsBBCode()) } ]); back(opCenter); } function attack() { currentCategory = "ATAQUE"; title("⚔️", "ATAQUE"); button("🎯 Planejador Individual", function () { run("https://twscripts.dev/scripts/singleVillagePlanner.js"); }); button("⚔️ Planejador em Massa", function () { run("https://twscripts.dev/scripts/massCommandTimer.js"); }); button("⚔️ Planejador em Massa 2", function () { run("https://twscripts.dev/scripts/massAttackPlanner.js"); }); button("🎭 FakeScript Generator", function () { run("https://twscripts.dev/scripts/fakeScriptGenerator.js"); }); button("📤 Ataques Enviados", function () { run("https://twscripts.dev/scripts/getIncsForPlayer.js"); }); back(); } function defense() { currentCategory = "DEFESA"; title("🛡️", "DEFESA"); button("🛡️ Filtrar Suporte", function () { run("https://shinko-to-kuma.com/scripts/filter_support.js"); }); button("🎯 SingleSnipe", function () { run("https://twscripts.dev/scripts/singleVillageSnipe.js"); }); button("📦 Apoio em Massa", function () { window.heavyCav = 4; run("https://dl.dropboxusercontent.com/s/idwa7mmpn6nxl3l/supportSender.js?dl=0"); }); button("📊 Contar / Remover Apoios", function () { run("https://twscripts.dev/scripts/supportCounterEvolved.js"); }); button("❤️ Calculadora de Defesa", function () { run("https://twscripts.dev/scripts/defenseHealthCheck.js"); }); button("👀 Ver Todos os Ataques", function () { run("https://dl.dropbox.com/s/flt8iokmg7pomow/IncomingOpSpotter.js"); }); back(); } function leadership() { currentCategory = "LIDERANÇA"; title("👑", "LIDERANÇA"); button("👑 Overwatch", function () { run("https://shinko-to-kuma.com/scripts/overwatch.js"); }); button("👥 Calculadora da Tribo", function () { run("https://shinko-to-kuma.com/scripts/tribeMembersTroopCalculator.js"); }); button("📈 Tribe Stats", function () { run("https://shinko-to-kuma.com/scripts/tribeStats.js"); }); button("🔎 Análise de Tribos", function () { run("https://twscripts.dev/scripts/tribeStatsTool.js"); }); back(); } function villages() { currentCategory = "ALDEIAS"; title("🏘️", "ALDEIAS"); button("✏️ Renomear Aldeias", function () { run("https://dl.dropboxusercontent.com/s/9rpgd3weuj0vp7z/renameVillages.js"); }); button("✏️ Renomeador BR", function () { run("https://media.innogamescdn.com/com_DS_BR/Scripts/Aprovados/TsalkaponeVillageRenamer.js"); }); button("📍 Coletor de Coordenadas", function () { run(COORDS); }); button("👤 Coletor de Coordenadas | PERFIL", function () { run(PROFILE_COORDS); }); button("🏰 Aldeias da Front", function () { run("https://twscripts.dev/scripts/findFrontlineVillages.js"); }); button("🏚️ Buscar Aldeias Bárbaras", function () { run("https://shinko-to-kuma.com/scripts/map_filterTWSophie.js"); }); button("✨ Buscar Aldeias Bônus", function () { run("https://shinko-to-kuma.com/scripts/findBonus.js"); }); button("📂 Contador de Grupos", function () { run("https://dl.dropboxusercontent.com/s/ry6d9uu2m0mcxsb/group%20counts.js"); }); back(); } function resources() { currentCategory = "RECURSOS"; title("📦", "RECURSOS"); separator("🚚 RECURSOS"); button("🚚 Enviar Recursos", function () { run("https://shinko-to-kuma.com/scripts/res-senderV2.js"); }); button("🏗️ Recursos Construção", function () { run("https://shinko-to-kuma.com/scripts/requestScript.js"); }); button("⚖️ Meu Balanceador", function () { run("https://dl.dropboxusercontent.com/s/bytvle86lj6230c/resBalancer.js?dl=0"); }); button("⚖️ Balanceador BR", function () { window.settings = { highFarm:23000, lowPoints:2000, builtOutPercentage:0.25, needsMorePercentage:0.85 }; run("https://media.innogamescdn.com/com_DS_BR/Scripts/Aprovados/WarehouseBalancer.js"); }); separator("🌾 COLETA"); button("🌾 Coleta em Massa", function () { window.premiumBtnEnabled = false; run("https://shinko-to-kuma.com/scripts/massScavenge.js"); }); button("🗺️ Coleta Overview", function () { run("https://shinko-to-kuma.com/scripts/scavengingOverview.js"); }); button("🏘️ Coleta Single Aldeia", function () { window.premiumBtnEnabled = false; run("https://shinko-to-kuma.com/scripts/scavengingFinal.js"); }); separator("🪙 OUTROS"); button("👑 Recursos para Nobre", function () { run("https://twscripts.dev/scripts/nobleCalculator.js"); }); button("🪙 Mint Helper", function () { run("https://twscripts.dev/scripts/mintHelper.js"); }); button("🌾 Eficiência do Farm", function () { run("https://twscripts.dev/scripts/farmingEfficiencyCalculator.js"); }); separator("🏳️ BANDEIRAS"); content.insertAdjacentHTML("beforeend", ` <div style="padding:8px 6px;margin-bottom:4px;color:#999;font-size:9px;line-height:15px;background:rgba(216,170,69,.05);border:1px solid rgba(216,170,69,.2);border-radius:8px;"> Abre a tela de recrutamento ou dispensa em massa e já marca <b style="color:${goldLight};">1 nobre</b> em todas as aldeias disponíveis. Você confere e clica em <b>Recrutar</b>/<b>Dispensar</b> direto no jogo — nada é enviado automaticamente. </div> `); button("👑 Recrutar Nobre (massa)", function () { goToMassTrain("mass"); }); button("🏳️ Dispensar Nobre (massa)", function () { goToMassTrain("mass_decommission"); }); back(); } function troops() { currentCategory = "TROPAS"; title("👥", "TROPAS"); button("📊 Contador de Tropas", function () { run("https://dl.dropboxusercontent.com/s/75jut7q397e03e5/troop_counter.js"); }); button("📊 Tropas em Casa", function () { run("https://twscripts.dev/scripts/countHomeTroops.js"); }); button("📊 Contador Alternativo", function () { run("https://twscripts.dev/scripts/troopsCounterFixed.js"); }); button("📝 Templates de Tropas", function () { run("https://twscripts.dev/scripts/troopTemplatesManager.js"); }); back(); } function intel() { currentCategory = "INTEL"; title("🔎", "INTEL"); button("🔎 ID Duplicador / Incomings", function () { window.NOBLE_GAP = 100; window.FORMAT = "%unit% %player% %sent%"; run("https://twscripts.dev/scripts/incomingsOverview.js"); }); button("📑 Filtrar Relatórios", function () { run("https://twscripts.dev/scripts/advancedReportFilters.js"); }); button("📍 Coletor de Coordenadas", function () { run(COORDS); }); button("👤 Coletor de Coordenadas | PERFIL", function () { run(PROFILE_COORDS); }); button("🗼 Watchtower Plotter", function () { run("https://shinko-to-kuma.com/scripts/watchTower.js"); }); button("🏚️ Buscar Aldeias Bárbaras", function () { run("https://shinko-to-kuma.com/scripts/map_filterTWSophie.js"); }); button("✨ Buscar Aldeias Bônus", function () { run("https://shinko-to-kuma.com/scripts/findBonus.js"); }); button("🏰 Frontline Villages", function () { run("https://twscripts.dev/scripts/findFrontlineVillages.js"); }); separator("🧰 UTILITÁRIOS"); button("📝 Notas", function () { run("https://media.innogamescdn.com/com_DS_BR/Scripts/Aprovados/AutoNotesFromReports.js"); }); button("📜 PP Logs", function () { run("https://shinko-to-kuma.com/scripts/log.js"); }); back(); } function openWorldMap() {
-    var old = document.getElementById("jj-world-map");
-    if (old) { old.remove(); return; }
-
+(function () {
     var gold = "#d8aa45";
     var goldLight = "#f0c65d";
-    var COLOR_ME = "#f0c65d";
-    var COLOR_TRIBE = "#1a3a8f";
-    var COLOR_ALLY = "#5bc0f8";
-    var COLOR_PNA = "#9b5bf8";
-    var COLOR_ENEMY = "#e04b4b";
-    var COLOR_OTHER = "#3a3a3a";
-
+ 
+    var old = document.getElementById("jj-fulls-import");
+    if (old) { old.remove(); return; }
+ 
+    function inputStyle() {
+        return "width:100%;box-sizing:border-box;padding:8px;color:#eee;background:#0d0f12;" +
+               "border:1px solid rgba(216,170,69,.38);border-radius:8px;font-size:10px;outline:none;";
+    }
+ 
     var panel = document.createElement("div");
-    panel.id = "jj-world-map";
+    panel.id = "jj-fulls-import";
     panel.style.cssText =
-        "position:fixed;inset:0;z-index:999999;background:#08090c;" +
-        "font-family:-apple-system,BlinkMacSystemFont,Verdana,Arial;color:#eee;" +
-        "display:flex;flex-direction:column;";
-
+        "position:fixed;z-index:999999;top:50px;right:8px;width:320px;max-width:92vw;" +
+        "max-height:86vh;overflow:auto;box-sizing:border-box;" +
+        "background:linear-gradient(145deg,#17191d 0%,#08090c 52%,#121419 100%);" +
+        "border:1px solid #8a6728;border-radius:14px;color:#eee;" +
+        "font-family:-apple-system,BlinkMacSystemFont,Verdana,Arial;" +
+        "box-shadow:0 14px 42px rgba(0,0,0,.74);";
+ 
     panel.innerHTML =
-        '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:linear-gradient(135deg,#191b1f,#090a0c);border-bottom:1px solid rgba(216,170,69,.4);">' +
-            '<div style="color:' + goldLight + ';font-size:13px;font-weight:800;">🗺️ MAPA MUNDIAL</div>' +
-            '<span id="jjwm-x" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:#ddd;font-size:14px;border:1px solid rgba(216,170,69,.4);border-radius:6px;background:#111318;cursor:pointer;">✕</span>' +
+        '<div id="jjfi-h" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:linear-gradient(135deg,#191b1f,#090a0c 70%);border-radius:13px 13px 0 0;border-bottom:1px solid rgba(216,170,69,.45);touch-action:none;">' +
+            '<div style="color:' + goldLight + ';font-size:13px;font-weight:800;">⚔️ IMPORTAR FULLS</div>' +
+            '<span id="jjfi-x" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:#ddd;font-size:13px;border:1px solid rgba(216,170,69,.4);border-radius:6px;background:#111318;cursor:pointer;">✕</span>' +
         '</div>' +
-        '<div id="jjwm-status" style="padding:6px 10px;color:#999;font-size:9px;">Carregando dados...</div>' +
-        '<div style="position:relative;flex:1;overflow:hidden;">' +
-            '<canvas id="jjwm-canvas" style="display:block;width:100%;height:100%;touch-action:none;"></canvas>' +
-            '<div style="position:absolute;right:10px;bottom:70px;display:flex;flex-direction:column;gap:6px;">' +
-                '<button id="jjwm-zoom-in" style="width:36px;height:36px;background:#111318;color:' + gold + ';border:1px solid rgba(216,170,69,.5);border-radius:8px;font-size:16px;font-weight:800;">+</button>' +
-                '<button id="jjwm-zoom-out" style="width:36px;height:36px;background:#111318;color:' + gold + ';border:1px solid rgba(216,170,69,.5);border-radius:8px;font-size:16px;font-weight:800;">−</button>' +
-                '<button id="jjwm-reset" style="width:36px;height:36px;background:#111318;color:#ccc;border:1px solid rgba(216,170,69,.5);border-radius:8px;font-size:11px;">⟳</button>' +
+        '<div style="padding:10px;">' +
+            '<div style="color:#aaa;font-size:9px;margin-bottom:4px;">MINHA TRIBO (TAG)</div>' +
+            '<input id="jjfi-tag" placeholder="Ex: JJ" style="' + inputStyle() + '">' +
+ 
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px;">' +
+                '<div><div style="color:#aaa;font-size:8px;margin-bottom:3px;">MÍN. MACHADO</div><input id="jjfi-min-axe" type="number" value="5000" style="' + inputStyle() + '"></div>' +
+                '<div><div style="color:#aaa;font-size:8px;margin-bottom:3px;">MÍN. CAV. LEVE</div><input id="jjfi-min-light" type="number" value="1000" style="' + inputStyle() + '"></div>' +
             '</div>' +
-            '<div style="position:absolute;right:10px;top:10px;padding:7px 8px;background:rgba(10,11,14,.9);border:1px solid rgba(216,170,69,.4);border-radius:8px;font-size:9px;">' +
-                '<button id="jjwm-load-commands" style="width:100%;padding:6px;background:' + gold + ';color:#111;border:none;border-radius:6px;font-size:9px;font-weight:800;cursor:pointer;margin-bottom:6px;">⚔️ CARREGAR COMANDOS</button>' +
-                '<div style="color:#aaa;margin-bottom:4px;">Vel. p/ ataques recebidos (min/campo)</div>' +
-                '<input id="jjwm-speed" type="number" step="0.5" value="30" style="width:100%;box-sizing:border-box;padding:4px;margin-bottom:6px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:5px;font-size:9px;">' +
-                '<label style="display:flex;align-items:center;gap:5px;margin-bottom:3px;"><input type="checkbox" id="jjwm-cb-atk-out" checked>Atacando</label>' +
-                '<label style="display:flex;align-items:center;gap:5px;margin-bottom:3px;"><input type="checkbox" id="jjwm-cb-atk-in" checked>Recebendo</label>' +
-                '<label style="display:flex;align-items:center;gap:5px;margin-bottom:3px;"><input type="checkbox" id="jjwm-cb-sup-out" checked>Apoio indo</label>' +
-                '<label style="display:flex;align-items:center;gap:5px;margin-bottom:3px;"><input type="checkbox" id="jjwm-cb-sup-back" checked>Apoio voltando</label>' +
-                '<label style="display:flex;align-items:center;gap:5px;"><input type="checkbox" id="jjwm-cb-sup-in" checked>Apoio chegando</label>' +
+            '<div style="display:flex;align-items:center;gap:6px;margin-top:6px;">' +
+                '<input id="jjfi-require-ram" type="checkbox" style="width:14px;height:14px;">' +
+                '<label for="jjfi-require-ram" style="color:#aaa;font-size:9px;">Exigir aríete presente</label>' +
             '</div>' +
-            '<div style="position:absolute;left:10px;bottom:10px;padding:6px 8px;background:rgba(10,11,14,.85);border:1px solid rgba(216,170,69,.3);border-radius:8px;font-size:8px;line-height:14px;">' +
-                '<div><span style="display:inline-block;width:8px;height:8px;background:' + COLOR_ME + ';border-radius:2px;margin-right:4px;"></span>Eu</div>' +
-                '<div><span style="display:inline-block;width:8px;height:8px;background:' + COLOR_TRIBE + ';border-radius:2px;margin-right:4px;"></span>Minha tribo</div>' +
-                '<div><span style="display:inline-block;width:8px;height:8px;background:' + COLOR_ALLY + ';border-radius:2px;margin-right:4px;"></span>Aliada</div>' +
-                '<div><span style="display:inline-block;width:8px;height:8px;background:' + COLOR_PNA + ';border-radius:2px;margin-right:4px;"></span>PNA</div>' +
-                '<div><span style="display:inline-block;width:8px;height:8px;background:' + COLOR_ENEMY + ';border-radius:2px;margin-right:4px;"></span>Inimiga</div>' +
-                '<div><span style="display:inline-block;width:8px;height:8px;background:' + COLOR_OTHER + ';border-radius:2px;margin-right:4px;"></span>Outras</div>' +
-            '</div>' +
+ 
+            '<button id="jjfi-btn" style="width:100%;margin-top:9px;padding:9px;background:' + gold + ';color:#111;border:none;border-radius:8px;font-weight:800;font-size:11px;cursor:pointer;">⚔️ IMPORTAR FULLS</button>' +
+ 
+            '<div id="jjfi-status" style="margin-top:9px;color:#aaa;font-size:9px;line-height:15px;"></div>' +
+            '<div id="jjfi-result" style="margin-top:7px;"></div>' +
+            '<button id="jjfi-copy" style="width:100%;margin-top:7px;padding:7px;background:#202329;color:#eee;border:1px solid rgba(216,170,69,.5);border-radius:8px;font-size:9px;font-weight:700;cursor:pointer;display:none;">📋 COPIAR LISTA</button>' +
         '</div>';
-
+ 
     document.body.appendChild(panel);
-    document.getElementById("jjwm-x").onclick = function () { panel.remove(); };
-
-    var canvas = document.getElementById("jjwm-canvas");
-    var ctx = canvas.getContext("2d");
-    var statusEl = document.getElementById("jjwm-status");
-
-    var dpr = window.devicePixelRatio || 1;
-    function resizeCanvas() {
-        var rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
+    document.getElementById("jjfi-x").onclick = function () { panel.remove(); };
+ 
+    function decodeName(raw) {
+        try { return decodeURIComponent(raw.replace(/\+/g, " ")); } catch (e) { return raw; }
     }
-    resizeCanvas();
-
-    var state = {
-        minX: 0, maxX: 999, minY: 0, maxY: 999,
-        scale: 1, offsetX: 0, offsetY: 0,
-        mine: [], tribe: [], ally: [], pna: [], enemy: [], other: [],
-        lines: { atkOut: [], atkIn: [], supOut: [], supBack: [], supIn: [] }
-    };
-
-    function fitToView() {
-        var w = canvas.width, h = canvas.height;
-        var worldW = Math.max(1, state.maxX - state.minX);
-        var worldH = Math.max(1, state.maxY - state.minY);
-        var scaleX = w / worldW;
-        var scaleY = h / worldH;
-        state.scale = Math.min(scaleX, scaleY) * 0.95;
-        state.offsetX = (w - worldW * state.scale) / 2;
-        state.offsetY = (h - worldH * state.scale) / 2;
-    }
-
-    function worldToScreen(x, y) {
-        return [
-            (x - state.minX) * state.scale + state.offsetX,
-            (y - state.minY) * state.scale + state.offsetY
-        ];
-    }
-
-    var pendingDraw = false;
-    function draw() {
-        if (pendingDraw) return;
-        pendingDraw = true;
-        requestAnimationFrame(function () {
-            pendingDraw = false;
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.fillStyle = "#08090c";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            var dotOther = Math.max(1, state.scale * 0.8);
-            ctx.fillStyle = COLOR_OTHER;
-            state.other.forEach(function (v) {
-                var p = worldToScreen(v.x, v.y);
-                if (p[0] < -5 || p[0] > canvas.width + 5 || p[1] < -5 || p[1] > canvas.height + 5) return;
-                ctx.fillRect(p[0], p[1], dotOther, dotOther);
-            });
-
-            function drawGroup(list, color) {
-                ctx.fillStyle = color;
-                list.forEach(function (v) {
-                    var p = worldToScreen(v.x, v.y);
-                    if (p[0] < -5 || p[0] > canvas.width + 5 || p[1] < -5 || p[1] > canvas.height + 5) return;
-                    ctx.fillRect(p[0], p[1], dotOther, dotOther);
-                });
-            }
-            drawGroup(state.pna, COLOR_PNA);
-            drawGroup(state.ally, COLOR_ALLY);
-            drawGroup(state.enemy, COLOR_ENEMY);
-            drawGroup(state.tribe, COLOR_TRIBE);
-            drawGroup(state.mine, COLOR_ME);
-
-            var lineWidth = Math.max(0.5, state.scale * 0.35);
-
-            function drawLines(list, color, dashed, checked) {
-                if (!checked || !list.length) return;
-                ctx.lineCap = "round";
-                ctx.lineJoin = "round";
-                ctx.shadowBlur = 0;
-                ctx.strokeStyle = color;
-                ctx.globalAlpha = 0.8;
-                ctx.lineWidth = lineWidth;
-                ctx.setLineDash(dashed ? [lineWidth * 3, lineWidth * 2.2] : []);
-
-                list.forEach(function (l) {
-                    var p1 = worldToScreen(l.from.x, l.from.y);
-                    var p2 = worldToScreen(l.to.x, l.to.y);
-                    ctx.beginPath();
-                    ctx.moveTo(p1[0], p1[1]);
-                    ctx.lineTo(p2[0], p2[1]);
-                    ctx.stroke();
-                });
-
-                ctx.setLineDash([]);
-                ctx.globalAlpha = 1;
-            }
-
-            function drawMovingDots(list, color) {
-                var speedInput = document.getElementById("jjwm-speed");
-                var manualSpeed = speedInput ? parseFloat(speedInput.value) || 18 : 18;
-                var now = Date.now();
-                var dotR = lineWidth * 1.15;
-
-                ctx.fillStyle = color;
-                ctx.shadowColor = color;
-                ctx.shadowBlur = dotR * 0.8;
-
-                list.forEach(function (l) {
-                    if (!l.arrival) return;
-                    var distFields = Math.sqrt(
-                        (l.to.x - l.from.x) * (l.to.x - l.from.x) +
-                        (l.to.y - l.from.y) * (l.to.y - l.from.y)
-                    );
-                    var speed = l.speedOverride || manualSpeed;
-                    var totalMs = distFields * speed * 60000;
-                    if (totalMs <= 0) return;
-                    var startMs = l.arrival - totalMs;
-                    var progress = (now - startMs) / totalMs;
-                    if (progress < 0 || progress > 1) return;
-
-                    var p1 = worldToScreen(l.from.x, l.from.y);
-                    var p2 = worldToScreen(l.to.x, l.to.y);
-                    var px = p1[0] + (p2[0] - p1[0]) * progress;
-                    var py = p1[1] + (p2[1] - p1[1]) * progress;
-
-                    ctx.beginPath();
-                    ctx.arc(px, py, dotR, 0, Math.PI * 2);
-                    ctx.fill();
-                });
-
-                ctx.shadowBlur = 0;
-            }
-
-            var cbAtkOut = document.getElementById("jjwm-cb-atk-out");
-            var cbAtkIn = document.getElementById("jjwm-cb-atk-in");
-            var cbSupOut = document.getElementById("jjwm-cb-sup-out");
-            var cbSupBack = document.getElementById("jjwm-cb-sup-back");
-
-            var cbSupIn = document.getElementById("jjwm-cb-sup-in");
-
-            drawLines(state.lines.atkOut, "#3ddc5a", false, cbAtkOut && cbAtkOut.checked);
-            drawLines(state.lines.atkIn, "#e04b4b", false, cbAtkIn && cbAtkIn.checked);
-            drawLines(state.lines.supOut, "#3ddc5a", false, cbSupOut && cbSupOut.checked);
-            drawLines(state.lines.supBack, "#3ddc5a", true, cbSupBack && cbSupBack.checked);
-            drawLines(state.lines.supIn, "#5bc0f8", false, cbSupIn && cbSupIn.checked);
-
-            if (cbAtkOut && cbAtkOut.checked) drawMovingDots(state.lines.atkOut, "#3ddc5a");
-            if (cbAtkIn && cbAtkIn.checked) drawMovingDots(state.lines.atkIn, "#e04b4b");
-            if (cbSupIn && cbSupIn.checked) drawMovingDots(state.lines.supIn, "#5bc0f8");
-        });
-    }
-
-    setInterval(function () { draw(); }, 250);
-
-    // ---- carregar dados ----
-    var myId = null;
-    try { myId = window.game_data && game_data.player && String(game_data.player.id); } catch (e) {}
-
     function fetchText(url) { return fetch(url).then(function (r) { return r.text(); }); }
-
-    var BASE_SPEEDS = { spear: 18, sword: 22, axe: 18, archer: 18, spy: 9, light: 10, marcher: 10, heavy: 11, ram: 30, catapult: 30, knight: 10, snob: 35 };
-    var worldConfig = { speed: 1, unitSpeed: 1 };
-
-    function fetchWorldConfig() {
-        return fetch("/interface.php?func=get_config").then(function (r) { return r.text(); }).then(function (xml) {
-            var doc = new DOMParser().parseFromString(xml, "text/xml");
-            var speedEl = doc.querySelector("speed");
-            var unitSpeedEl = doc.querySelector("unit_speed");
-            worldConfig.speed = speedEl ? parseFloat(speedEl.textContent) || 1 : 1;
-            worldConfig.unitSpeed = unitSpeedEl ? parseFloat(unitSpeedEl.textContent) || 1 : 1;
-        }).catch(function () {});
-    }
-
-    function mapUnitColumns(table) {
-        var map = {};
-        if (!table) return map;
-        var headerRow = table.querySelector("thead tr") || table.querySelector("tr:first-child");
-        if (!headerRow) return map;
-        var cells = headerRow.querySelectorAll("th, td");
-        var unitKeys = ["spear", "sword", "axe", "archer", "spy", "light", "marcher", "heavy", "ram", "catapult", "knight", "snob", "militia"];
-        cells.forEach(function (cell, i) {
-            var img = cell.querySelector("img");
-            var unitEl = cell.querySelector("[data-unit]");
-            var src = img ? (img.getAttribute("src") || "") : "";
-            var dataUnit = unitEl ? unitEl.getAttribute("data-unit") : (cell.getAttribute("data-unit") || "");
-            unitKeys.forEach(function (key) {
-                if (dataUnit === key || new RegExp("unit_" + key, "i").test(src)) map[i] = key;
-            });
+ 
+    function findUnitColumnIndex(table, unitKey) {
+        var headerCells = table.querySelectorAll("thead th, tr:first-child th");
+        var index = -1;
+        headerCells.forEach(function (th, i) {
+            var unitEl = th.querySelector("[data-unit]");
+            var img = th.querySelector("img");
+            var isMatchByData = unitEl && unitEl.getAttribute("data-unit") === unitKey;
+            var isMatchByImg = img && new RegExp("unit_" + unitKey, "i").test(img.getAttribute("src") || "");
+            if (isMatchByData || isMatchByImg) index = i;
         });
-        return map;
+        return index;
     }
-
-    function slowestSpeedForRow(cells, unitColMap) {
-        var slowestBase = null;
-        Object.keys(unitColMap).forEach(function (idxStr) {
-            var idx = parseInt(idxStr, 10);
-            if (!cells[idx]) return;
-            var count = parseInt((cells[idx].textContent || "0").replace(/\D/g, ""), 10) || 0;
-            if (count <= 0) return;
-            var base = BASE_SPEEDS[unitColMap[idx]];
-            if (base && (slowestBase === null || base > slowestBase)) slowestBase = base;
-        });
-        if (!slowestBase) return null;
-        return slowestBase / (worldConfig.speed * worldConfig.unitSpeed);
+ 
+    function currentVillageId() {
+        try { if (window.game_data && game_data.village) return game_data.village.id; } catch (e) {}
+        return "0";
     }
-
-    function fetchDiplomacy() {
-        var villageId = "0";
-        try { if (window.game_data && game_data.village) villageId = game_data.village.id; } catch (e) {}
-        var url = "/game.php?village=" + villageId + "&screen=ally&mode=contracts";
-
-        return fetch(url, { credentials: "same-origin" }).then(function (res) { return res.text(); }).then(function (html) {
-            var doc = new DOMParser().parseFromString(html, "text/html");
-            var allyIds = [], pnaIds = [], enemyIds = [];
-            var currentSection = null;
-
-            var allNodes = doc.body.querySelectorAll("*");
-            allNodes.forEach(function (el) {
-                var ownText = "";
-                for (var c = 0; c < el.childNodes.length; c++) {
-                    if (el.childNodes[c].nodeType === 3) ownText += el.childNodes[c].textContent;
+ 
+    var lastCopyText = "";
+ 
+    document.getElementById("jjfi-btn").onclick = function () {
+        var myTag = document.getElementById("jjfi-tag").value.trim();
+        var statusEl = document.getElementById("jjfi-status");
+        var resultEl = document.getElementById("jjfi-result");
+        var copyBtn = document.getElementById("jjfi-copy");
+        resultEl.innerHTML = "";
+        copyBtn.style.display = "none";
+ 
+        var minAxe = parseInt(document.getElementById("jjfi-min-axe").value, 10) || 0;
+        var minLight = parseInt(document.getElementById("jjfi-min-light").value, 10) || 0;
+        var requireRam = document.getElementById("jjfi-require-ram").checked;
+        var PARTIAL_PCT = 0.7;
+ 
+        if (!myTag) { statusEl.innerHTML = "⚠️ Digite a TAG da tribo."; return; }
+ 
+        statusEl.innerHTML = "🔎 Buscando tribo \"" + myTag + "\"...";
+ 
+        fetchText("/map/ally.txt").then(function (allyText) {
+            var lines = allyText.split("\n");
+            var myAllyId = null, myAllyName = null;
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i].trim();
+                if (!line) continue;
+                var cols = line.split(",");
+                if (cols.length < 3) continue;
+                if (decodeName(cols[2]).toLowerCase() === myTag.toLowerCase()) {
+                    myAllyId = cols[0];
+                    myAllyName = decodeName(cols[1]);
+                    break;
                 }
-                ownText = ownText.trim();
-
-                if (ownText && /^aliad/i.test(ownText)) { currentSection = "ally"; return; }
-                if (ownText && /pactos? de n[aã]o.?agress/i.test(ownText)) { currentSection = "pna"; return; }
-                if (ownText && /^inimig/i.test(ownText)) { currentSection = "enemy"; return; }
-
-                if (el.tagName === "A" && el.textContent.trim() === "Terminar") {
-                    var href = el.getAttribute("href") || "";
-                    var m = href.match(/[?&]id=(\d+)/);
-                    if (!m || !currentSection) return;
-                    var id = m[1];
-                    if (currentSection === "ally") allyIds.push(id);
-                    else if (currentSection === "pna") pnaIds.push(id);
-                    else if (currentSection === "enemy") enemyIds.push(id);
-                }
-            });
-
-            return { allyIds: allyIds, pnaIds: pnaIds, enemyIds: enemyIds };
-        });
-    }
-
-    if (!myId) {
-        statusEl.textContent = "⚠️ Não consegui identificar seu jogador (game_data.player.id ausente).";
-    } else {
-        statusEl.textContent = "🔎 Lendo diplomacia da tribo...";
-
-        fetchDiplomacy().then(function (diplo) {
-            fetchText("/map/player.txt").then(function (playerText) {
-                var lines = playerText.split("\n");
-                var myAllyId = null;
-                var allyOf = {};
-                for (var i = 0; i < lines.length; i++) {
-                    var line = lines[i].trim();
-                    if (!line) continue;
-                    var cols = line.split(",");
-                    if (cols.length < 3) continue;
-                    allyOf[cols[0]] = cols[2];
-                    if (cols[0] === myId) myAllyId = cols[2];
-                }
-
-                var allySet = {}; diplo.allyIds.forEach(function (id) { allySet[id] = true; });
-                var pnaSet = {}; diplo.pnaIds.forEach(function (id) { pnaSet[id] = true; });
-                var enemySet = {}; diplo.enemyIds.forEach(function (id) { enemySet[id] = true; });
-
-                statusEl.textContent = "🔎 Baixando aldeias do mundo...";
-
-                fetchText("/map/village.txt").then(function (villageText) {
-                    var vLines = villageText.split("\n");
-                    var mine = [], tribe = [], ally = [], pna = [], enemy = [], other = [];
-                    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-
-                    for (var j = 0; j < vLines.length; j++) {
-                        var vline = vLines[j].trim();
-                        if (!vline) continue;
-                        var vcols = vline.split(",");
-                        if (vcols.length < 5) continue;
-                        var x = parseInt(vcols[2], 10);
-                        var y = parseInt(vcols[3], 10);
-                        if (isNaN(x) || isNaN(y)) continue;
-                        var pid = vcols[4];
-                        var pAllyId = pid ? allyOf[pid] : null;
-
-                        if (x < minX) minX = x;
-                        if (x > maxX) maxX = x;
-                        if (y < minY) minY = y;
-                        if (y > maxY) maxY = y;
-
-                        if (pid === myId) {
-                            mine.push({ x: x, y: y });
-                        } else if (pAllyId && myAllyId && pAllyId === myAllyId) {
-                            tribe.push({ x: x, y: y });
-                        } else if (pAllyId && enemySet[pAllyId]) {
-                            enemy.push({ x: x, y: y });
-                        } else if (pAllyId && allySet[pAllyId]) {
-                            ally.push({ x: x, y: y });
-                        } else if (pAllyId && pnaSet[pAllyId]) {
-                            pna.push({ x: x, y: y });
-                        } else {
-                            other.push({ x: x, y: y });
-                        }
-                    }
-
-                    state.minX = minX; state.maxX = maxX; state.minY = minY; state.maxY = maxY;
-                    state.mine = mine; state.tribe = tribe; state.ally = ally; state.pna = pna; state.enemy = enemy; state.other = other;
-
-                    fitToView();
-                    draw();
-
-                    statusEl.textContent = "✅ " + (mine.length + tribe.length + ally.length + pna.length + enemy.length + other.length) + " aldeias — " +
-                        mine.length + " minhas, " + tribe.length + " da tribo, " + ally.length + " aliadas, " + pna.length + " PNA, " + enemy.length + " inimigas.";
-                }).catch(function (e) { statusEl.textContent = "❌ Erro ao baixar village.txt: " + e.message; });
-            }).catch(function (e) { statusEl.textContent = "❌ Erro ao baixar player.txt: " + e.message; });
-        }).catch(function (e) { statusEl.textContent = "❌ Erro ao ler diplomacia: " + e.message; });
-    }
-
-    function extractCoord(text) {
-        var m = String(text || "").match(/\((\d{1,3})\|(\d{1,3})\)/);
-        if (!m) return null;
-        return { x: parseInt(m[1], 10), y: parseInt(m[2], 10) };
-    }
-
-    function parseArrival(text) {
-        var t = String(text || "").trim();
-        var m = t.match(/(hoje|amanh[aã])\s+[aà]s\s+(\d{1,2}):(\d{2}):(\d{2})(?::(\d{1,3}))?/i);
-        if (!m) return null;
-        var now = new Date();
-        var d = new Date(now.getFullYear(), now.getMonth(), now.getDate(),
-            parseInt(m[2], 10), parseInt(m[3], 10), parseInt(m[4], 10), m[5] ? parseInt(m[5], 10) : 0);
-        if (/amanh/i.test(m[1])) d.setDate(d.getDate() + 1);
-        return d.getTime();
-    }
-
-    function findBiggestTable(doc) {
-        var tables = doc.querySelectorAll("table.vis");
-        var best = null, bestCount = 0;
-        tables.forEach(function (t) {
-            var rows = t.querySelectorAll("tbody tr");
-            if (rows.length > bestCount) { bestCount = rows.length; best = t; }
-        });
-        return best;
-    }
-
-    function loadCommands() {
-        var villageId = "0";
-        try { if (window.game_data && game_data.village) villageId = game_data.village.id; } catch (e) {}
-
-        var combinedUrl = "/game.php?village=" + villageId + "&screen=overview_villages&mode=commands";
-        var incomingsUrl = "/game.php?village=" + villageId + "&screen=overview_villages&mode=incomings&type=unignored&subtype=all";
-
-        statusEl.textContent = "🔎 Carregando comandos enviados/retornando...";
-
-        fetchWorldConfig().then(function () {
-        fetch(combinedUrl, { credentials: "same-origin" }).then(function (r) { return r.text(); }).then(function (html) {
-            var doc = new DOMParser().parseFromString(html, "text/html");
-            var table = findBiggestTable(doc);
-            var atkOut = [], supOut = [], supBack = [];
-            var unitColMap = mapUnitColumns(table);
-
-            if (table) {
-                var rows = table.querySelectorAll("tbody tr");
-                rows.forEach(function (row) {
-                    var cells = row.querySelectorAll("td");
-                    if (cells.length < 2) return;
-                    var desc = (cells[0].textContent || "").trim();
-                    var target = extractCoord(desc);
-                    var origin = extractCoord(cells[1].textContent);
-                    if (!target || !origin) return;
-
-                    var arrival = parseArrival(cells[2] ? cells[2].textContent : "");
-                    var autoSpeed = slowestSpeedForRow(cells, unitColMap);
-
-                    if (/^Ataque a/i.test(desc)) {
-                        atkOut.push({ from: origin, to: target, arrival: arrival, speedOverride: autoSpeed });
-                    } else if (/^Apoio a/i.test(desc)) {
-                        supOut.push({ from: origin, to: target, arrival: arrival, speedOverride: autoSpeed });
-                    } else if (/^Retorno de/i.test(desc)) {
-                        supBack.push({ from: target, to: origin, arrival: arrival, speedOverride: autoSpeed });
-                    }
-                });
             }
-
-            state.lines.atkOut = atkOut;
-            state.lines.supOut = supOut;
-            state.lines.supBack = supBack;
-
-            statusEl.textContent = "🔎 Carregando ataques recebidos...";
-
-            fetch(incomingsUrl, { credentials: "same-origin" }).then(function (r2) { return r2.text(); }).then(function (html2) {
-                var doc2 = new DOMParser().parseFromString(html2, "text/html");
-                var table2 = findBiggestTable(doc2);
-                var atkIn = [], supIn = [];
-
-                if (table2) {
-                    var rows2 = table2.querySelectorAll("tbody tr");
-                    rows2.forEach(function (row) {
-                        var cells2 = row.querySelectorAll("td");
-                        if (cells2.length < 3) return;
-                        var tipo = (cells2[0].textContent || "").trim();
-                        var destino = extractCoord(cells2[1].textContent);
-                        var origem = extractCoord(cells2[2].textContent);
-                        if (!destino || !origem) return;
-                        var arrivalIn = parseArrival(cells2[5] ? cells2[5].textContent : "");
-
-                        if (/ataque/i.test(tipo)) {
-                            atkIn.push({ from: origem, to: destino, arrival: arrivalIn });
-                        } else if (/suporte|apoio/i.test(tipo)) {
-                            supIn.push({ from: origem, to: destino, arrival: arrivalIn });
-                        }
-                    });
+ 
+            if (!myAllyId) { statusEl.innerHTML = "⚠️ Tribo \"" + myTag + "\" não encontrada em /map/ally.txt."; return; }
+ 
+            fetchText("/map/player.txt").then(function (playerText) {
+                var pLines = playerText.split("\n");
+                var myPlayersList = [];
+                for (var j = 0; j < pLines.length; j++) {
+                    var pline = pLines[j].trim();
+                    if (!pline) continue;
+                    var pcols = pline.split(",");
+                    if (pcols.length < 3) continue;
+                    if (pcols[2] === myAllyId) myPlayersList.push({ id: pcols[0], name: decodeName(pcols[1]) });
                 }
-
-                state.lines.atkIn = atkIn;
-                state.lines.supIn = supIn;
-                draw();
-                statusEl.textContent = "✅ Linhas: " + atkOut.length + " atacando, " + atkIn.length + " recebendo, " +
-                    supOut.length + " apoio indo, " + supBack.length + " apoio/retorno voltando, " + supIn.length + " apoio chegando.";
-            }).catch(function (e) { statusEl.textContent = "❌ Erro ao carregar recebidos: " + e.message; });
-        }).catch(function (e) { statusEl.textContent = "❌ Erro ao carregar comandos: " + e.message; });
-        });
+ 
+                if (!myPlayersList.length) { statusEl.innerHTML = "⚠️ Nenhum jogador encontrado na tribo " + myAllyName + "."; return; }
+ 
+                var villageId = currentVillageId();
+                var perPlayer = {};
+                myPlayersList.forEach(function (p) { perPlayer[p.name] = { disponivel: 0, parcial: 0 }; });
+ 
+                var parseErrors = 0;
+                var index = 0;
+ 
+                function processNext() {
+                    if (index >= myPlayersList.length) { finish(); return; }
+                    var p = myPlayersList[index];
+                    index++;
+                    statusEl.innerHTML = "⚔️ Buscando tropas: " + index + "/" + myPlayersList.length + " (" + p.name + ")...";
+ 
+                    var url = "/game.php?screen=ally&mode=members_troops&player_id=" + p.id + "&village=" + villageId;
+ 
+                    fetch(url, { credentials: "same-origin" })
+                        .then(function (res) { return res.text(); })
+                        .then(function (html) {
+                            var doc = new DOMParser().parseFromString(html, "text/html");
+                            var candidateTables = doc.querySelectorAll("table.vis");
+                            var table = null;
+                            candidateTables.forEach(function (t) {
+                                if (table) return;
+                                var hRow = t.querySelector("thead tr") || t.querySelector("tr:first-child");
+                                if (hRow && hRow.querySelector("img")) table = t;
+                            });
+                            if (!table) { parseErrors++; processNext(); return; }
+ 
+                            var axeIdx = findUnitColumnIndex(table, "axe");
+                            var lightIdx = findUnitColumnIndex(table, "light");
+                            var ramIdx = findUnitColumnIndex(table, "ram");
+                            if (axeIdx === -1 || lightIdx === -1) { parseErrors++; processNext(); return; }
+ 
+                            var rows = table.querySelectorAll("tr");
+                            var headerRow = table.querySelector("thead tr") || table.querySelector("tr:first-child");
+                            rows.forEach(function (row) {
+                                if (row.querySelector("th") || row === headerRow) return;
+                                var cells = row.querySelectorAll("td");
+                                var rowText = row.textContent || "";
+                                if (!/\d{1,3}\|\d{1,3}/.test(rowText)) return;
+ 
+                                function cellNum(idx) {
+                                    if (idx === -1 || !cells[idx]) return 0;
+                                    var n = parseInt((cells[idx].textContent || "0").replace(/\D/g, ""), 10);
+                                    return isNaN(n) ? 0 : n;
+                                }
+ 
+                                var axe = cellNum(axeIdx);
+                                var light = cellNum(lightIdx);
+                                var ram = ramIdx !== -1 ? cellNum(ramIdx) : null;
+ 
+                                var axePct = minAxe ? axe / minAxe : 1;
+                                var lightPct = minLight ? light / minLight : 1;
+                                var ramOk = !requireRam || (ram !== null && ram > 0);
+ 
+                                if (axe >= minAxe && light >= minLight && ramOk) {
+                                    perPlayer[p.name].disponivel++;
+                                } else if ((axePct >= PARTIAL_PCT || lightPct >= PARTIAL_PCT) && (axe > 0 || light > 0)) {
+                                    perPlayer[p.name].parcial++;
+                                }
+                            });
+ 
+                            processNext();
+                        })
+                        .catch(function () { parseErrors++; processNext(); });
+                }
+ 
+                function finish() {
+                    var names = Object.keys(perPlayer)
+                        .filter(function (n) { return perPlayer[n].disponivel > 0 || perPlayer[n].parcial > 0; })
+                        .sort(function (a, b) { return perPlayer[b].disponivel - perPlayer[a].disponivel; });
+ 
+                    var totalDisp = 0, totalParc = 0;
+                    names.forEach(function (n) { totalDisp += perPlayer[n].disponivel; totalParc += perPlayer[n].parcial; });
+ 
+                    if (!names.length) {
+                        statusEl.innerHTML = "✅ Importação concluída. Nenhum full disponível ou parcial encontrado." +
+                            (parseErrors ? "<br>⚠️ " + parseErrors + " jogador(es) não puderam ser lidos." : "");
+                        return;
+                    }
+ 
+                    var html = '<div style="padding:7px;background:rgba(15,17,21,.9);border:1px solid rgba(216,170,69,.28);border-radius:8px;font-size:9px;margin-bottom:5px;">' +
+                        '<div style="color:' + goldLight + ';font-weight:800;">' + myAllyName + ' [' + myTag + ']</div>' +
+                        '<div style="color:#ccc;">✅ Total disponível: <b>' + totalDisp + '</b> &nbsp; 🟡 Total parcial: <b>' + totalParc + '</b></div>' +
+                        (parseErrors ? '<div style="color:#d66;margin-top:3px;">⚠️ ' + parseErrors + ' jogador(es) não puderam ser lidos.</div>' : '') +
+                    '</div>';
+ 
+                    var copyLines = [myAllyName + " [" + myTag + "] — Fulls importados", ""];
+ 
+                    names.forEach(function (name) {
+                        var d = perPlayer[name];
+                        html += '<div style="margin:3px 0;padding:6px 7px;background:rgba(15,17,21,.9);border:1px solid rgba(216,170,69,.28);border-radius:7px;font-size:9px;display:flex;justify-content:space-between;">' +
+                            '<b style="color:' + goldLight + '">' + name + '</b>' +
+                            '<span style="color:#ccc;">✅ ' + d.disponivel + ' &nbsp; 🟡 ' + d.parcial + '</span>' +
+                        '</div>';
+                        copyLines.push(name + " — Disponível: " + d.disponivel + " | Parcial: " + d.parcial);
+                    });
+ 
+                    lastCopyText = copyLines.join("\n");
+                    resultEl.innerHTML = html;
+                    copyBtn.style.display = "block";
+                    statusEl.innerHTML = "✅ Importação concluída.";
+                }
+ 
+                processNext();
+            }).catch(function (e) { statusEl.innerHTML = "❌ Erro ao baixar player.txt: " + e.message; });
+        }).catch(function (e) { statusEl.innerHTML = "❌ Erro ao baixar ally.txt: " + e.message; });
+    };
+ 
+    document.getElementById("jjfi-copy").onclick = function () {
+        var ta = document.createElement("textarea");
+        ta.value = lastCopyText;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); } catch (e) {}
+        ta.remove();
+        var btn = document.getElementById("jjfi-copy");
+        btn.textContent = "✅ Copiado!";
+        setTimeout(function () { btn.textContent = "📋 COPIAR LISTA"; }, 1300);
+    };
+ 
+    // arrastar
+    var header = document.getElementById("jjfi-h");
+    var sx = 0, sy = 0, iL = 0, iT = 0, dragging = false, moved = false;
+    function pt(e) {
+        if (e.touches && e.touches.length) return e.touches[0];
+        if (e.changedTouches && e.changedTouches.length) return e.changedTouches[0];
+        return e;
     }
-
-    document.getElementById("jjwm-load-commands").onclick = loadCommands;
-    ["jjwm-cb-atk-out", "jjwm-cb-atk-in", "jjwm-cb-sup-out", "jjwm-cb-sup-back", "jjwm-cb-sup-in"].forEach(function (id) {
-        document.getElementById(id).addEventListener("change", draw);
-    });
-
-    // ---- zoom / pan ----
-    document.getElementById("jjwm-zoom-in").onclick = function () { zoomAt(canvas.width / 2, canvas.height / 2, 1.4); };
-    document.getElementById("jjwm-zoom-out").onclick = function () { zoomAt(canvas.width / 2, canvas.height / 2, 1 / 1.4); };
-    document.getElementById("jjwm-reset").onclick = function () { fitToView(); draw(); };
-
-    function zoomAt(sx, sy, factor) {
-        var wx = (sx - state.offsetX) / state.scale;
-        var wy = (sy - state.offsetY) / state.scale;
-        state.scale *= factor;
-        state.offsetX = sx - wx * state.scale;
-        state.offsetY = sy - wy * state.scale;
-        draw();
+    function start(e) {
+        if (e.target && e.target.closest && e.target.closest("#jjfi-x")) return;
+        var p = pt(e);
+        var r = panel.getBoundingClientRect();
+        sx = p.clientX; sy = p.clientY; iL = r.left; iT = r.top;
+        dragging = true; moved = false;
     }
-
-    var dragging = false, lastX = 0, lastY = 0;
-    var pinchDist = null;
-
-    function getTouchDist(touches) {
-        var dx = touches[0].clientX - touches[1].clientX;
-        var dy = touches[0].clientY - touches[1].clientY;
-        return Math.sqrt(dx * dx + dy * dy);
-    }
-
-    canvas.addEventListener("touchstart", function (e) {
-        if (e.touches.length === 1) {
-            dragging = true;
-            lastX = e.touches[0].clientX;
-            lastY = e.touches[0].clientY;
-        } else if (e.touches.length === 2) {
-            dragging = false;
-            pinchDist = getTouchDist(e.touches);
-        }
-    }, { passive: true });
-
-    canvas.addEventListener("touchmove", function (e) {
-        var rect = canvas.getBoundingClientRect();
-        if (e.touches.length === 1 && dragging) {
-            var dx = (e.touches[0].clientX - lastX) * dpr;
-            var dy = (e.touches[0].clientY - lastY) * dpr;
-            state.offsetX += dx;
-            state.offsetY += dy;
-            lastX = e.touches[0].clientX;
-            lastY = e.touches[0].clientY;
-            draw();
-        } else if (e.touches.length === 2 && pinchDist !== null) {
-            var newDist = getTouchDist(e.touches);
-            var factor = newDist / pinchDist;
-            var cx = ((e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left) * dpr;
-            var cy = ((e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top) * dpr;
-            zoomAt(cx, cy, factor);
-            pinchDist = newDist;
+    function move(e) {
+        if (!dragging) return;
+        var p = pt(e);
+        var dx = p.clientX - sx, dy = p.clientY - sy;
+        if (!moved) {
+            if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+            panel.style.left = iL + "px";
+            panel.style.top = iT + "px";
+            panel.style.right = "auto";
+            moved = true;
         }
         if (e.cancelable) e.preventDefault();
-    }, { passive: false });
-
-    canvas.addEventListener("touchend", function (e) {
-        if (e.touches.length === 0) { dragging = false; pinchDist = null; }
-    }, { passive: true });
-
-    canvas.addEventListener("mousedown", function (e) {
-        dragging = true; lastX = e.clientX; lastY = e.clientY;
-    });
-    document.addEventListener("mousemove", function (e) {
-        if (!dragging) return;
-        state.offsetX += (e.clientX - lastX) * dpr;
-        state.offsetY += (e.clientY - lastY) * dpr;
-        lastX = e.clientX; lastY = e.clientY;
-        draw();
-    });
-    document.addEventListener("mouseup", function () { dragging = false; });
-    canvas.addEventListener("wheel", function (e) {
-        e.preventDefault();
-        var rect = canvas.getBoundingClientRect();
-        var sx = (e.clientX - rect.left) * dpr;
-        var sy = (e.clientY - rect.top) * dpr;
-        zoomAt(sx, sy, e.deltaY < 0 ? 1.15 : 1 / 1.15);
-    }, { passive: false });
-
-    window.addEventListener("resize", function () { resizeCanvas(); draw(); });
-}
-(function buildRegistry() { const realContent = content; content = document.createElement("div"); [opCenter, attack, defense, leadership, villages, resources, troops, intel] .forEach(fn => fn()); content = realContent; })(); document.getElementById("jj-search").addEventListener("input", function () { const term = this.value; if (!term.trim()) { home(); } else { renderSearchResults(term); } }); home(); const header = document.getElementById("jjh"); let sx = 0; let sy = 0; let initialLeft = 0; let initialTop = 0; let dragCandidate = false; let moving = false; const DRAG_THRESHOLD = 6; function getPoint(e) { if (e.touches && e.touches.length) return e.touches[0]; if (e.changedTouches && e.changedTouches.length) return e.changedTouches[0]; return e; } function start(e) { if (e.target && e.target.closest && e.target.closest("#jjx")) return; const p = getPoint(e); const r = panel.getBoundingClientRect(); sx = p.clientX; sy = p.clientY; initialLeft = r.left; initialTop = r.top; dragCandidate = true; moving = false; } function move(e) { if (!dragCandidate) return; const p = getPoint(e); const dx = p.clientX - sx; const dy = p.clientY - sy; if (!moving) { if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return; panel.style.left = initialLeft + "px"; panel.style.top = initialTop + "px"; panel.style.right = "auto"; moving = true; } if (e.cancelable) e.preventDefault(); let newLeft = initialLeft + dx; let newTop = initialTop + dy; const maxLeft = Math.max(0, window.innerWidth - panel.offsetWidth); const maxTop = Math.max(0, window.innerHeight - 55); newLeft = Math.max(0, Math.min(newLeft, maxLeft)); newTop = Math.max(0, Math.min(newTop, maxTop)); panel.style.left = newLeft + "px"; panel.style.top = newTop + "px"; } function end() { dragCandidate = false; moving = false; } header.addEventListener("touchstart", start, { passive:true }); header.addEventListener("touchmove", move, { passive:false }); header.addEventListener("touchend", end, { passive:true }); header.addEventListener("touchcancel", end, { passive:true }); header.addEventListener("mousedown", start); document.addEventListener("mousemove", move); document.addEventListener("mouseup", end);
-const resizeHandle = document.getElementById("jj-resize");
-let rsx = 0; let rsy = 0; let startW = 0; let startH = 0; let resizing = false;
-function applySize(w, h) {
-    const minW = 300; const minH = 340;
-    const maxW = Math.min(window.innerWidth * 0.95, window.innerWidth - 16);
-    const maxH = Math.min(window.innerHeight * 0.92, window.innerHeight - 16);
-    w = Math.max(minW, Math.min(w, maxW));
-    h = Math.max(minH, Math.min(h, maxH));
-    panel.style.width = w + "px";
-    panel.style.maxHeight = "none";
-    panel.style.height = h + "px";
-    return { w, h };
-}
-const savedSize = loadJSON(STORAGE.size, null);
-if (savedSize && savedSize.w && savedSize.h) { applySize(savedSize.w, savedSize.h); }
-function rsStart(e) {
-    if (e.cancelable) e.preventDefault();
-    e.stopPropagation();
-    const p = getPoint(e);
-    const r = panel.getBoundingClientRect();
-    rsx = p.clientX; rsy = p.clientY; startW = r.width; startH = r.height; resizing = true;
-}
-function rsMove(e) {
-    if (!resizing) return;
-    const p = getPoint(e);
-    if (e.cancelable) e.preventDefault();
-    const dw = p.clientX - rsx; const dh = p.clientY - rsy;
-    applySize(startW + dw, startH + dh);
-}
-function rsEnd() {
-    if (!resizing) return;
-    resizing = false;
-    const r = panel.getBoundingClientRect();
-    saveJSON(STORAGE.size, { w: Math.round(r.width), h: Math.round(r.height) });
-}
-resizeHandle.addEventListener("touchstart", rsStart, { passive:false });
-resizeHandle.addEventListener("touchmove", rsMove, { passive:false });
-resizeHandle.addEventListener("touchend", rsEnd, { passive:true });
-resizeHandle.addEventListener("touchcancel", rsEnd, { passive:true });
-resizeHandle.addEventListener("mousedown", rsStart);
-document.addEventListener("mousemove", rsMove);
-document.addEventListener("mouseup", rsEnd);
+        panel.style.left = Math.max(0, Math.min(iL + dx, window.innerWidth - panel.offsetWidth)) + "px";
+        panel.style.top = Math.max(0, Math.min(iT + dy, window.innerHeight - 50)) + "px";
+    }
+    function end() { dragging = false; moved = false; }
+    header.addEventListener("touchstart", start, { passive: true });
+    header.addEventListener("touchmove", move, { passive: false });
+    header.addEventListener("touchend", end, { passive: true });
+    header.addEventListener("mousedown", start);
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", end);
 })();
