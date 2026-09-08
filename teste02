@@ -58,6 +58,23 @@
                 '<div id="jjfi-prox-list" style="margin-top:6px;max-height:240px;overflow:auto;display:none;"></div>' +
                 '<button id="jjfi-prox-copy" style="width:100%;margin-top:6px;padding:7px;background:#202329;color:#eee;border:1px solid rgba(216,170,69,.5);border-radius:8px;font-size:9px;font-weight:700;cursor:pointer;display:none;">📋 COPIAR LISTA DETALHADA</button>' +
             '</div>' +
+ 
+            '<div style="margin-top:14px;padding-top:10px;border-top:1px solid rgba(216,170,69,.25);">' +
+                '<div style="color:' + goldLight + ';font-size:11px;font-weight:800;margin-bottom:6px;">🗺️ FULLS POR CONTINENTE (K)</div>' +
+                '<div style="color:#999;font-size:8px;margin-bottom:6px;">Usa a TAG e os critérios de full já preenchidos acima. Filtra só as aldeias full que estão nesse K.</div>' +
+                '<div style="color:#aaa;font-size:9px;margin-bottom:4px;">CONTINENTE (K)</div>' +
+                '<input id="jjfi-k" placeholder="Ex: 55" style="' + inputStyle() + '">' +
+                '<button id="jjfi-k-btn" style="width:100%;margin-top:7px;padding:9px;background:' + gold + ';color:#111;border:none;border-radius:8px;font-weight:800;font-size:11px;cursor:pointer;">🔎 FULLS NESSE K</button>' +
+                '<div id="jjfi-k-status" style="margin-top:8px;color:#aaa;font-size:9px;line-height:15px;"></div>' +
+ 
+                '<div style="color:#aaa;font-size:9px;font-weight:800;margin:8px 0 4px;">TOTAL POR JOGADOR</div>' +
+                '<div id="jjfi-k-byplayer" style="margin-bottom:5px;"></div>' +
+                '<button id="jjfi-k-copy1" style="width:100%;padding:7px;background:#202329;color:#eee;border:1px solid rgba(216,170,69,.5);border-radius:8px;font-size:9px;font-weight:700;cursor:pointer;display:none;">📋 COPIAR TOTAL POR JOGADOR</button>' +
+ 
+                '<div style="color:#aaa;font-size:9px;font-weight:800;margin:10px 0 4px;">COORDENADAS</div>' +
+                '<div id="jjfi-k-coords" style="max-height:220px;overflow:auto;margin-bottom:5px;"></div>' +
+                '<button id="jjfi-k-copy2" style="width:100%;padding:7px;background:#202329;color:#eee;border:1px solid rgba(216,170,69,.5);border-radius:8px;font-size:9px;font-weight:700;cursor:pointer;display:none;">📋 COPIAR COORDENADAS</button>' +
+            '</div>' +
         '</div>';
  
     document.body.appendChild(panel);
@@ -410,6 +427,183 @@
         btn.textContent = "✅ Copiado!";
         setTimeout(function () { btn.textContent = "📋 COPIAR LISTA DETALHADA"; }, 1300);
     };
+ 
+    document.getElementById("jjfi-k-btn").onclick = function () {
+        var myTag = document.getElementById("jjfi-tag").value.trim();
+        var kFilter = document.getElementById("jjfi-k").value.trim().replace(/[^0-9]/g, "");
+        var statusEl3 = document.getElementById("jjfi-k-status");
+        var byPlayerEl = document.getElementById("jjfi-k-byplayer");
+        var coordsEl = document.getElementById("jjfi-k-coords");
+        var copy1Btn = document.getElementById("jjfi-k-copy1");
+        var copy2Btn = document.getElementById("jjfi-k-copy2");
+ 
+        byPlayerEl.innerHTML = "";
+        coordsEl.innerHTML = "";
+        copy1Btn.style.display = "none";
+        copy2Btn.style.display = "none";
+ 
+        var minAxe = parseInt(document.getElementById("jjfi-min-axe").value, 10) || 0;
+        var minLight = parseInt(document.getElementById("jjfi-min-light").value, 10) || 0;
+        var requireRam = document.getElementById("jjfi-require-ram").checked;
+        var PARTIAL_PCT = 0.7;
+ 
+        if (!myTag) { statusEl3.innerHTML = "⚠️ Preencha a TAG da sua tribo."; return; }
+        if (!kFilter) { statusEl3.innerHTML = "⚠️ Preencha o continente (K)."; return; }
+ 
+        statusEl3.innerHTML = "🔎 Buscando tribo \"" + myTag + "\"...";
+ 
+        fetchText("/map/ally.txt").then(function (allyText) {
+            var lines = allyText.split("\n");
+            var myAllyId = null, myAllyName = null;
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i].trim();
+                if (!line) continue;
+                var cols = line.split(",");
+                if (cols.length < 3) continue;
+                if (decodeName(cols[2]).toLowerCase() === myTag.toLowerCase()) {
+                    myAllyId = cols[0];
+                    myAllyName = decodeName(cols[1]);
+                    break;
+                }
+            }
+            if (!myAllyId) { statusEl3.innerHTML = "⚠️ Tribo \"" + myTag + "\" não encontrada."; return; }
+ 
+            fetchText("/map/player.txt").then(function (playerText) {
+                var pLines = playerText.split("\n");
+                var myPlayersList = [];
+                for (var j = 0; j < pLines.length; j++) {
+                    var pline = pLines[j].trim();
+                    if (!pline) continue;
+                    var pcols = pline.split(",");
+                    if (pcols.length < 3) continue;
+                    if (pcols[2] === myAllyId) myPlayersList.push({ id: pcols[0], name: decodeName(pcols[1]) });
+                }
+                if (!myPlayersList.length) { statusEl3.innerHTML = "⚠️ Nenhum jogador na tribo " + myAllyName + "."; return; }
+ 
+                var villageId = currentVillageId();
+                var fullsFound = [];
+                var parseErrors = 0;
+                var index = 0;
+ 
+                function processNext() {
+                    if (index >= myPlayersList.length) { finish(); return; }
+                    var p = myPlayersList[index];
+                    index++;
+                    statusEl3.innerHTML = "⚔️ Buscando tropas: " + index + "/" + myPlayersList.length + " (" + p.name + ")...";
+ 
+                    var url = "/game.php?screen=ally&mode=members_troops&player_id=" + p.id + "&village=" + villageId;
+ 
+                    fetch(url, { credentials: "same-origin" })
+                        .then(function (res) { return res.text(); })
+                        .then(function (html) {
+                            var doc = new DOMParser().parseFromString(html, "text/html");
+                            var candidateTables = doc.querySelectorAll("table.vis");
+                            var table = null;
+                            candidateTables.forEach(function (t) {
+                                if (table) return;
+                                var hRow = t.querySelector("thead tr") || t.querySelector("tr:first-child");
+                                if (hRow && hRow.querySelector("img")) table = t;
+                            });
+                            if (!table) { parseErrors++; processNext(); return; }
+ 
+                            var axeIdx = findUnitColumnIndex(table, "axe");
+                            var lightIdx = findUnitColumnIndex(table, "light");
+                            var ramIdx = findUnitColumnIndex(table, "ram");
+                            if (axeIdx === -1 || lightIdx === -1) { parseErrors++; processNext(); return; }
+ 
+                            var rows = table.querySelectorAll("tr");
+                            var headerRow = table.querySelector("thead tr") || table.querySelector("tr:first-child");
+                            rows.forEach(function (row) {
+                                if (row.querySelector("th") || row === headerRow) return;
+                                var cells = row.querySelectorAll("td");
+                                var rowText = row.textContent || "";
+                                var coordMatch = rowText.match(/\d{1,3}\|\d{1,3}/);
+                                if (!coordMatch) return;
+ 
+                                function cellNum(idx) {
+                                    if (idx === -1 || !cells[idx]) return 0;
+                                    var n = parseInt((cells[idx].textContent || "0").replace(/\D/g, ""), 10);
+                                    return isNaN(n) ? 0 : n;
+                                }
+ 
+                                var axe = cellNum(axeIdx);
+                                var light = cellNum(lightIdx);
+                                var ram = ramIdx !== -1 ? cellNum(ramIdx) : null;
+                                var ramOk = !requireRam || (ram !== null && ram > 0);
+ 
+                                if (axe >= minAxe && light >= minLight && ramOk) {
+                                    var parts = coordMatch[0].split("|");
+                                    var vx = parseInt(parts[0], 10), vy = parseInt(parts[1], 10);
+                                    var vk = Math.floor(vy / 100) * 10 + Math.floor(vx / 100);
+                                    if (String(vk) === kFilter) {
+                                        fullsFound.push({ player: p.name, coord: coordMatch[0] });
+                                    }
+                                }
+                            });
+ 
+                            processNext();
+                        })
+                        .catch(function () { parseErrors++; processNext(); });
+                }
+ 
+                function finish() {
+                    statusEl3.innerHTML = "✅ Busca concluída — " + fullsFound.length + " full(s) em K" + kFilter +
+                        (parseErrors ? " (⚠️ " + parseErrors + " jogador(es) não lidos)" : "");
+ 
+                    if (!fullsFound.length) return;
+ 
+                    var byPlayer = {};
+                    fullsFound.forEach(function (f) { byPlayer[f.player] = (byPlayer[f.player] || 0) + 1; });
+                    var playerNames = Object.keys(byPlayer).sort(function (a, b) { return byPlayer[b] - byPlayer[a]; });
+ 
+                    var html1 = "";
+                    var copyLines1 = [myAllyName + " [" + myTag + "] — Fulls em K" + kFilter, ""];
+                    playerNames.forEach(function (name) {
+                        html1 += '<div style="margin:3px 0;padding:6px 7px;background:rgba(15,17,21,.9);border:1px solid rgba(216,170,69,.28);border-radius:7px;font-size:9px;display:flex;justify-content:space-between;">' +
+                            '<b style="color:' + goldLight + '">' + name + '</b>' +
+                            '<span style="color:#ccc;">' + byPlayer[name] + ' full(s)</span>' +
+                        '</div>';
+                        copyLines1.push(name + " — " + byPlayer[name] + " full(s)");
+                    });
+                    byPlayerEl.innerHTML = html1;
+                    copy1Btn.style.display = "block";
+                    copy1Btn.dataset.text = copyLines1.join("\n");
+ 
+                    var html2 = "";
+                    var copyLines2 = [myAllyName + " [" + myTag + "] — Coordenadas dos fulls em K" + kFilter, ""];
+                    fullsFound.sort(function (a, b) { return a.player.localeCompare(b.player); }).forEach(function (f) {
+                        html2 += '<div style="margin:3px 0;padding:6px 7px;background:rgba(15,17,21,.9);border:1px solid rgba(216,170,69,.28);border-radius:7px;font-size:9px;display:flex;justify-content:space-between;">' +
+                            '<span>' + f.coord + '</span>' +
+                            '<span style="color:' + goldLight + ';">' + f.player + '</span>' +
+                        '</div>';
+                        copyLines2.push(f.coord + " — " + f.player);
+                    });
+                    coordsEl.innerHTML = html2;
+                    copy2Btn.style.display = "block";
+                    copy2Btn.dataset.text = copyLines2.join("\n");
+                }
+ 
+                processNext();
+            }).catch(function (e) { statusEl3.innerHTML = "❌ Erro ao baixar player.txt: " + e.message; });
+        }).catch(function (e) { statusEl3.innerHTML = "❌ Erro ao baixar ally.txt: " + e.message; });
+    };
+ 
+    function copyFromDataset(btn) {
+        var ta = document.createElement("textarea");
+        ta.value = btn.dataset.text || "";
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); } catch (e) {}
+        ta.remove();
+        var original = btn.textContent;
+        btn.textContent = "✅ Copiado!";
+        setTimeout(function () { btn.textContent = original; }, 1300);
+    }
+ 
+    document.getElementById("jjfi-k-copy1").onclick = function () { copyFromDataset(this); };
+    document.getElementById("jjfi-k-copy2").onclick = function () { copyFromDataset(this); };
  
     // arrastar
     var header = document.getElementById("jjfi-h");
