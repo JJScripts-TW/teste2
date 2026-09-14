@@ -1,576 +1,419 @@
 javascript:(function(){
-const ID='jj-mp-sep',KEY='JJ_MP_SEP_V5',GKEY='JJ_MP_SEP_V5_UI';
-if(document.getElementById(ID)){document.getElementById(ID).remove();return}
-
-const $=(q,r=document)=>r.querySelector(q);
-const U=a=>[...new Set(a||[])];
-
-let S=JSON.parse(localStorage.getItem(KEY)||'{"r":"","f":"","done":{},"date":"","time":""}'),
-G=JSON.parse(localStorage.getItem(GKEY)||'{"w":760,"h":"84vh","left":null,"top":55,"fontSize":13}'),
-R={},F={},N={},cur='',viewAll=false,filterMode='all',search='';
-
-function nameClean(s){
- return (s||'')
- .replace(/\u00a0/g,' ')
- .replace(/^[\s•●▪️◾🔴🟡⚔️🎯✅✔️\-–—]+/g,'')
- .replace(/^\(?\d{1,3}\)?[\s.\-–—:|]+/,'')
- .replace(/[\s:;,\-–—|>]+$/g,'')
- .replace(/\s*\([^()]*\)\s*$/,'')
- .replace(/[\s:;,\-–—|>]+$/g,'')
- .replace(/\s+/g,' ')
- .trim();
-}
-
-function key(s){
- return nameClean(s)
- .normalize('NFD')
- .replace(/[\u0300-\u036f]/g,'')
- .toLowerCase()
- .replace(/[^a-z0-9]/g,'');
-}
-
-function parse(txt){
- let o={};
-
- (txt||'').split(/\n/).forEach(line=>{
-  let cs=line.match(/\d{3}\|\d{3}/g);
-  if(!cs)return;
-
-  let p=line.search(/\d{3}\|\d{3}/);
-  let nm=nameClean(line.slice(0,p));
-  let k=key(nm);
-
-  if(!k)return;
-
-  if(!N[k])N[k]=nm;
-  if(!o[k])o[k]=[];
-
-  o[k].push(...cs);
- });
-
- Object.keys(o).forEach(k=>o[k]=U(o[k]));
- return o;
-}
-
-function C(a){
- return U(a).map(x=>'[coord]'+x+'[/coord]').join('\n')||
- '[i]Nenhum alvo atribuído[/i]';
-}
-
-function DATE(){return S.date&&S.date.trim()?S.date.trim():'22 DE SETEMBRO'}
-function TIME(){return S.time&&S.time.trim()?S.time.trim():'23:00:00:000'}
-
-function MP(k){
-return `[b]⚔️ OPERAÇÃO — DISTRIBUIÇÃO INDIVIDUAL[/b]
-
-Abaixo estão exclusivamente os seus alvos para esta operação.
-
-━━━━━━━━━━━━━━━━━━
-[b]⏰ DATA E HORÁRIO DA OP[/b]
-━━━━━━━━━━━━━━━━━━
-
-📅 [b]${DATE()}[/b]
-🎯 [b]HORÁRIO BASE: ${TIME()}[/b]
-
-[b]⚠️ ATENÇÃO À ORDEM DOS COMANDOS[/b]
-
-⚔️ [b]FULLS:[/b] deverão chegar antes dos nobres.
-
-👑 [b]NOBRES:[/b] deverão entrar após os fulls, mantendo a sequência correta da noblagem.
-
-🛡️ [b]APOIOS:[/b] deverão ser colocados [b]colados, imediatamente após o seu último nobre de comando[/b].
-
-Os fulls de ajuda enviados pela tribo para completar os alvos também deverão respeitar essa organização, evitando mistura com a sequência de nobres e apoios.
-
-━━━━━━━━━━━━━━━━━━
-[b]🔴 ALVOS REAIS[/b]
-━━━━━━━━━━━━━━━━━━
-
-${C(R[k])}
-
-[b]⚠️ IMPORTANTE[/b]
-
-Estes alvos fazem parte da distribuição oficial da operação.
-
-[b]NÃO ALTERE:[/b]
-* Alvo
-* Coordenada
-* Distribuição
-
-[b]🎯 NOBLAGEM E APOIOS[/b]
-
-O jogador responsável pela noblagem também é responsável pela coordenação dos apoios para os seus alvos.
-
-Caso você não tenha apoios suficientes, solicite ajuda a algum colega da [b]BACK[/b] para coordenar os apoios necessários para você.
-
-Caso tenha qualquer problema relacionado a tropas, distância ou horário, comunique a liderança antes de realizar qualquer alteração.
-
-━━━━━━━━━━━━━━━━━━
-[b]🟡 FAKES COORDENADOS[/b]
-━━━━━━━━━━━━━━━━━━
-
-${C(F[k])}
-
-[b]⚠️ FAKES COORDENADOS SÃO OBRIGATÓRIOS.[/b]
-
-Os comandos devem seguir rigorosamente a distribuição recebida.
-
-[b]NÃO TROQUE, NÃO ALTERE NEM ESPALHE OS FAKES.[/b]
-
-[b]📌 PADRÃO OBRIGATÓRIO POR ALVO:[/b]
-
-⚔️ [b]Fake de ataque:[/b]
-13 Catapultas + 1 Spy
-🎯 Alvo: [b]Ferreiro[/b]
-
-🛡️ [b]Fake de apoio:[/b]
-Mínimo de [b]8 comandos de apoio por alvo[/b]
-* 1 Lanceiro por comando
-
-Cada coordenada foi definida especificamente para esta operação.
-
-━━━━━━━━━━━━━━━━━━
-[b]📌 RESUMO[/b]
-━━━━━━━━━━━━━━━━━━
-
-📅 [b]${DATE()}[/b]
-🎯 Horário base: [b]${TIME()}[/b]
-
-⚔️ Fulls → [b]antes dos nobres[/b]
-👑 Nobres → [b]após os fulls[/b]
-🛡️ Apoios → [b]colados imediatamente após o último nobre[/b]
-
-🔴 Vermelho = [b]Alvo real da operação[/b]
-🟡 Amarelo = [b]Fake coordenado — obrigatório e não alterar[/b]
-
-Após organizar seus comandos, [b]confirme o recebimento e a execução da sua parte da operação[/b].
-
-[b]Não compartilhe seus alvos nem faça alterações por conta própria.[/b]`;
-}
-
-function allPlayers(){
- return U([...Object.keys(R),...Object.keys(F)])
- .sort((a,b)=>(N[a]||a).localeCompare(N[b]||b));
-}
-
-function MP_ALL(list){
- return list.map(k=>
-  '════════════════════════\n'+
-  '👤 '+(N[k]||k)+'\n'+
-  '════════════════════════\n\n'+MP(k)
- ).join('\n\n\n');
-}
-
-let d=document.createElement('div');
-d.id=ID;
-
-d.innerHTML=`<style>
-#${ID}{position:fixed;z-index:99999;top:${G.top}px;${G.left!=null?'left:'+G.left+'px;':'right:8px;'}width:${G.w}px;max-width:96vw;height:${typeof G.h==='number'?G.h+'px':G.h};min-width:520px;min-height:380px;max-height:96vh;background:#171717;color:#eee;border:1px solid #d8aa45;border-radius:10px;box-shadow:0 8px 28px #0009;font:13px Arial;display:flex;flex-direction:column;overflow:hidden}
-#${ID}*{box-sizing:border-box}
-#${ID} .h{padding:9px 10px;background:#222;color:#f0c65d;border-bottom:1px solid #d8aa45;display:flex;justify-content:space-between;align-items:center;font-weight:bold;cursor:move;user-select:none;flex:0 0 auto}
-#${ID} .toolbar{display:flex;gap:6px;padding:6px 8px;background:#1c1c1c;border-bottom:1px solid #333;flex:0 0 auto;flex-wrap:wrap;align-items:center}
-#${ID} .toolbar label{color:#f0c65d;font-size:11px;font-weight:bold;margin:0}
-#${ID} .toolbar input[type=text]{background:#0d0d0d;color:#eee;border:1px solid #555;border-radius:5px;padding:4px 6px;font-size:12px}
-#${ID} .body{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px;flex:1;min-height:0}
-#${ID} .col{display:flex;flex-direction:column;min-height:0}
-#${ID} textarea{width:100%;height:80px;background:#0d0d0d;color:#eee;border:1px solid #555;border-radius:6px;padding:7px;resize:vertical;flex:0 0 auto}
-#${ID} button{background:#d8aa45;border:0;border-radius:6px;padding:6px 9px;font-weight:bold;cursor:pointer;margin:2px;font-size:12px}
-#${ID} button.dark{background:#444;color:#fff}
-#${ID} button.ghost{background:#2b2b2b;color:#f0c65d;border:1px solid #555}
-#${ID} button.active{outline:2px solid #fff}
-#${ID} .list,#${ID} .prev{background:#0d0d0d;border:1px solid #444;border-radius:6px;overflow:auto;flex:1;min-height:0}
-#${ID} .row{padding:6px 7px;border-bottom:1px solid #292929;display:grid;grid-template-columns:1fr auto auto auto;gap:6px;align-items:center;cursor:pointer}
-#${ID} .row:hover{background:#1c1c1c}
-#${ID} .sel{background:#332b18}
-#${ID} .done{opacity:.45}
-#${ID} .issue{border-left:3px solid #e2554c}
-#${ID} .prev{white-space:pre-wrap;padding:8px;font-size:${G.fontSize}px}
-#${ID} label{color:#f0c65d;font-weight:bold;margin:4px 0 2px}
-#${ID} .small{font-size:11px;color:#bbb;padding:3px 2px}
-#${ID} .warn{color:#ffcb63}
-#${ID} .searchbar{display:flex;gap:5px;margin:3px 0}
-#${ID} .searchbar input{flex:1;background:#0d0d0d;color:#eee;border:1px solid #555;border-radius:5px;padding:5px 7px}
-#${ID} .filters{display:flex;gap:4px;margin-bottom:3px}
-#${ID} .filters button{padding:4px 7px;font-size:11px}
-#${ID} .grip{position:absolute;width:16px;height:16px;right:1px;bottom:1px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 0 50%,#d8aa45 50% 60%,transparent 60% 70%,#d8aa45 70% 80%,transparent 80%);z-index:2}
-#${ID} .toast{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:#2e7d32;color:#fff;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:bold;opacity:0;pointer-events:none;transition:opacity .25s;z-index:5}
-#${ID} .toast.show{opacity:1}
-#${ID} .progress{font-size:11px;color:#9fdc9f;padding:2px}
-</style>
-
-<div class="h">
-<span>⚔️ JJ — GERADOR DE MPs DA OP V5</span>
-<span>
-<button id="min" class="dark" title="Minimizar/Restaurar">▁</button>
-<button id="x" class="dark">✕</button>
-</span>
+ 
+var old=document.getElementById("jj-fs-mp");
+if(old){old.remove();return;}
+ 
+var d=document.createElement("div");
+d.id="jj-fs-mp";
+d.style="position:fixed;top:60px;right:10px;width:420px;max-height:88vh;overflow:auto;z-index:999999;background:#181818;border:2px solid #d8aa45;border-radius:10px;color:#eee;font:13px Arial;padding:12px;box-shadow:0 0 18px #000";
+ 
+d.innerHTML=`
+<div style="display:flex;justify-content:space-between;align-items:center">
+<b style="color:#f0c65d;font-size:17px">JJ — FULLS / SEMI-FULLS</b>
+<b id="jjfsx" style="cursor:pointer;color:#f66;font-size:18px">✕</b>
 </div>
-
-<div class="toolbar">
-<label>📅 Data:</label>
-<input id="opDate" type="text" placeholder="22 DE SETEMBRO" style="width:130px">
-<label>🎯 Horário:</label>
-<input id="opTime" type="text" placeholder="23:00:00:000" style="width:110px">
-<span style="flex:1"></span>
-<label>Fonte:</label>
-<button id="fMinus" class="ghost">A-</button>
-<button id="fPlus" class="ghost">A+</button>
-</div>
-
-<div class="main" style="display:flex;flex-direction:column;flex:1;min-height:0">
-<div class="body">
-
-<div class="col">
-<label>🔴 ALVOS REAIS</label>
-<textarea id="real" placeholder="J J — 528|424, 526|422"></textarea>
-
-<label>🟡 FAKES COORDENADOS</label>
-<textarea id="fake" placeholder="J J — 600|451, 592|451"></textarea>
-
-<div>
-<button id="gen">GERAR / ATUALIZAR</button>
-<button id="reset" class="dark">LIMPAR STATUS</button>
-</div>
-
-<div id="count" class="small"></div>
-<div id="check" class="small warn"></div>
-<div id="progress" class="progress"></div>
-
-<div class="searchbar">
-<input id="search" type="text" placeholder="🔎 buscar jogador...">
-</div>
-<div class="filters">
-<button id="fAll" class="ghost active">Todos</button>
-<button id="fPend" class="ghost">Pendentes</button>
-<button id="fIssue" class="ghost">Com problema</button>
-</div>
-
-<div id="list" class="list"></div>
-</div>
-
-<div class="col">
-<div id="who" class="small">Selecione um jogador</div>
-<div>
-<button id="modeSingle" class="ghost active">👤 Individual</button>
-<button id="modeAll" class="ghost">🗂 Ver todas as MPs</button>
-</div>
-<div id="prev" class="prev"></div>
-<div>
-<button id="copy">COPIAR MP</button>
-<button id="copyAll" class="dark">COPIAR TODAS</button>
-<button id="exportTxt" class="dark">EXPORTAR .TXT</button>
-<button id="mark" class="dark">✅ REVISADO</button>
-</div>
-</div>
-
-</div>
-</div>
-<div class="grip" id="grip" title="Arrastar para redimensionar"></div>
-<div class="toast" id="toast"></div>`;
-
+ 
+<div style="margin-top:10px;color:#ff6666"><b>🔴 LISTA DE FULLS</b></div>
+ 
+<textarea id="jjfsfull"
+placeholder="► Arken — 73 fulls no total
+   600|451 — 5 fulls
+   592|451 — 5 fulls"
+style="width:100%;height:165px;box-sizing:border-box;margin-top:5px;background:#252525;color:#fff;border:1px solid #555;border-radius:5px;padding:7px"></textarea>
+ 
+<div style="margin-top:10px;color:#f0a040"><b>🟠 LISTA DE SEMI-FULLS</b></div>
+ 
+<textarea id="jjfssemi"
+placeholder="► Arken — 10 semi fulls no total
+   601|451 — 3 semi fulls
+   602|451 — 2 semi-fulls"
+style="width:100%;height:165px;box-sizing:border-box;margin-top:5px;background:#252525;color:#fff;border:1px solid #555;border-radius:5px;padding:7px"></textarea>
+ 
+<button id="jjfsgo"
+style="width:100%;margin-top:12px;padding:10px;background:#d8aa45;color:#111;border:0;border-radius:6px;font-weight:bold;cursor:pointer">
+GERAR MPs
+</button>
+ 
+<div id="jjfsout" style="margin-top:12px"></div>
+`;
+ 
 document.body.appendChild(d);
-
-$('#real',d).value=S.r||'';
-$('#fake',d).value=S.f||'';
-$('#opDate',d).value=S.date||'';
-$('#opTime',d).value=S.time||'';
-
-function toast(msg){
- let t=$('#toast',d);
- t.textContent=msg;
- t.classList.add('show');
- clearTimeout(t._tm);
- t._tm=setTimeout(()=>t.classList.remove('show'),1600);
-}
-
-function save(){
- S.r=$('#real',d).value;
- S.f=$('#fake',d).value;
- S.date=$('#opDate',d).value;
- S.time=$('#opTime',d).value;
- localStorage.setItem(KEY,JSON.stringify(S));
-}
-
-function saveGeom(){
- let r=d.getBoundingClientRect();
- G.w=Math.round(r.width);
- G.h=Math.round(r.height);
- G.left=Math.round(r.left);
- G.top=Math.round(r.top);
- localStorage.setItem(GKEY,JSON.stringify(G));
-}
-
-function applyFont(){
- $('#prev',d).style.fontSize=G.fontSize+'px';
-}
-
-function select(k){
- cur=k;
- viewAll=false;
- $('#modeSingle',d).classList.add('active');
- $('#modeAll',d).classList.remove('active');
-
- $('#who',d).textContent=
- (N[k]||k)+' | 🔴 '+U(R[k]).length+
- ' reais | 🟡 '+U(F[k]).length+' fakes';
-
- $('#prev',d).textContent=MP(k);
- render(false);
-}
-
-function nextPending(afterKey){
- let P=allPlayers();
- let i=P.indexOf(afterKey);
- for(let step=1;step<=P.length;step++){
-  let k=P[(i+step)%P.length];
-  if(!S.done[k])return k;
- }
- return null;
-}
-
-function matchesFilter(k){
- if(search){
-  let s=search.toLowerCase();
-  if(!(N[k]||k).toLowerCase().includes(s))return false;
- }
- if(filterMode==='pending'&&S.done[k])return false;
- if(filterMode==='issues'){
-  let hasIssue=(!R[k]?.length)||(!F[k]?.length);
-  if(!hasIssue)return false;
- }
- return true;
-}
-
-function render(reparse=true){
- save();
-
- if(reparse){
-  N={};
-  R=parse(S.r);
-  F=parse(S.f);
- }
-
- let P=allPlayers();
- let visible=P.filter(matchesFilter);
-
- let both=P.filter(k=>R[k]?.length&&F[k]?.length);
- let onlyR=P.filter(k=>R[k]?.length&&!F[k]?.length);
- let onlyF=P.filter(k=>F[k]?.length&&!R[k]?.length);
-
- let tr=Object.values(R).reduce((s,a)=>s+a.length,0);
- let tf=Object.values(F).reduce((s,a)=>s+a.length,0);
-
- let doneCount=P.filter(k=>S.done[k]).length;
-
- $('#count',d).textContent=
- `TOTAL: ${P.length} MPs | 🔴 ${tr} reais | 🟡 ${tf} fakes | 🔗 ${both.length} com os dois`;
-
- $('#check',d).textContent=
- `⚠️ Só reais: ${onlyR.length}${onlyR.length?' ('+onlyR.map(k=>N[k]||k).join(', ')+')':''} | Só fakes: ${onlyF.length}${onlyF.length?' ('+onlyF.map(k=>N[k]||k).join(', ')+')':''}`;
-
- $('#progress',d).textContent=
- `✅ Revisados: ${doneCount}/${P.length}`;
-
- let L=$('#list',d);
- L.innerHTML='';
-
- visible.forEach(k=>{
-  let issue=(!R[k]?.length)||(!F[k]?.length);
-  let row=document.createElement('div');
-  row.className='row '+(S.done[k]?'done ':'')+(cur===k&&!viewAll?'sel ':'')+(issue?'issue':'');
-  row.onclick=(e)=>{if(e.target.tagName!=='BUTTON')select(k)};
-
-  let nm=document.createElement('b');
-  nm.textContent=(S.done[k]?'✅ ':'')+(N[k]||k);
-
-  let rr=document.createElement('span');
-  rr.textContent='🔴 '+U(R[k]).length;
-
-  let ff=document.createElement('span');
-  ff.textContent='🟡 '+U(F[k]).length;
-
-  let bt=document.createElement('button');
-  bt.textContent='VER';
-  bt.onclick=(e)=>{e.stopPropagation();select(k)};
-
-  row.append(nm,rr,ff,bt);
-  L.appendChild(row);
- });
-
- if(viewAll){
-  $('#prev',d).textContent=MP_ALL(P);
-  $('#who',d).textContent=`Visualizando todas as ${P.length} MPs`;
- }
-}
-
-// ---- eventos principais ----
-$('#gen',d).onclick=()=>render(true);
-$('#x',d).onclick=()=>d.remove();
-
-$('#min',d).onclick=()=>{
- let m=$('.main',d);
- if(m.style.display==='none'){m.style.display='flex';$('.toolbar',d).style.display='flex';d.style.height=(typeof G.h==='number'?G.h+'px':G.h)}
- else{m.style.display='none';$('.toolbar',d).style.display='none';d.style.height='auto'}
+ 
+document.getElementById("jjfsx").onclick=function(){
+d.remove();
 };
-
-$('#opDate',d).oninput=()=>{save()};
-$('#opTime',d).oninput=()=>{save()};
-
-let debTimer=null;
-['#real','#fake'].forEach(sel=>{
- $(sel,d).addEventListener('input',()=>{
-  clearTimeout(debTimer);
-  debTimer=setTimeout(()=>render(true),500);
- });
+ 
+function parseLista(txt){
+ 
+var jogadores={};
+var atual=null;
+ 
+txt.split(/\r?\n/).forEach(function(linha){
+ 
+linha=linha.trim();
+ 
+if(!linha)return;
+ 
+ 
+/* LINHAS DAS ALDEIAS — checadas ANTES do cabeçalho, porque uma
+coordenada ("600|451 — 5 fulls") também bate no padrão genérico
+de cabeçalho ("nome — N fulls"). Só tratamos como cabeçalho se a
+linha NÃO começar com uma coordenada.
+Aceita:
+600|451 — 5 fulls
+600|451 — 5 semi fulls
+600|451 — 5 semi-fulls
+600|451 — 5 semifulls
+600|451 — 5
+*/
+ 
+var ehCoordenada=/^\d{3}\|\d{3}\b/.test(linha);
+ 
+if(ehCoordenada){
+ 
+var coord=linha.match(
+/(\d{3}\|\d{3})\s*[—–-]\s*(\d+)(?:\s*(?:semi[\s-]*fulls?|semifulls?|fulls?))?/i
+);
+ 
+if(coord && atual){
+ 
+jogadores[atual].aldeias.push({
+coord:coord[1],
+qtd:parseInt(coord[2],10)
 });
-
-$('#search',d).addEventListener('input',(e)=>{
- search=e.target.value;
- render(false);
+ 
+}
+ 
+return;
+}
+ 
+ 
+/* CABEÇALHO DO JOGADOR
+Aceita:
+► Arken — 73 fulls no total
+► Arken — 10 semi fulls no total
+► Arken — 10 semi-fulls no total
+► Arken — 10 semifulls no total
+*/
+ 
+var head=linha.match(
+/^►?\s*(.+?)\s*[—–-]\s*(\d+)\s*(?:semi[\s-]*fulls?|semifulls?|fulls?|parci[ae]is?|ataques?|alvos?)\b.*$/i
+);
+ 
+if(head){
+ 
+atual=head[1].trim();
+ 
+if(!jogadores[atual]){
+jogadores[atual]={
+total:0,
+aldeias:[]
+};
+}
+ 
+jogadores[atual].total=parseInt(head[2],10);
+ 
+return;
+}
+ 
+ 
+/* FORMATO SIMPLES TAMBÉM ACEITO
+Arken — 600|451, 592|451
+*/
+ 
+var simples=linha.match(/^(.+?)\s*[—–-]\s*(.+)$/);
+ 
+if(simples){
+ 
+var nome=simples[1].replace(/^►\s*/,"").trim();
+var coords=simples[2].match(/\d{3}\|\d{3}/g);
+ 
+if(coords){
+ 
+if(!jogadores[nome]){
+jogadores[nome]={
+total:0,
+aldeias:[]
+};
+}
+ 
+coords.forEach(function(c){
+ 
+jogadores[nome].aldeias.push({
+coord:c,
+qtd:1
 });
-
-function setFilter(mode){
- filterMode=mode;
- ['fAll','fPend','fIssue'].forEach(id=>$('#'+id,d).classList.remove('active'));
- ({all:'fAll',pending:'fPend',issues:'fIssue'})[mode] && $('#'+({all:'fAll',pending:'fPend',issues:'fIssue'})[mode],d).classList.add('active');
- render(false);
+ 
+jogadores[nome].total++;
+ 
+});
+ 
 }
-$('#fAll',d).onclick=()=>setFilter('all');
-$('#fPend',d).onclick=()=>setFilter('pending');
-$('#fIssue',d).onclick=()=>setFilter('issues');
-
-$('#modeSingle',d).onclick=()=>{
- viewAll=false;
- $('#modeSingle',d).classList.add('active');
- $('#modeAll',d).classList.remove('active');
- if(cur)select(cur);else render(false);
-};
-$('#modeAll',d).onclick=()=>{
- viewAll=true;
- $('#modeAll',d).classList.add('active');
- $('#modeSingle',d).classList.remove('active');
- render(false);
-};
-
-$('#fMinus',d).onclick=()=>{G.fontSize=Math.max(9,G.fontSize-1);applyFont();localStorage.setItem(GKEY,JSON.stringify(G))};
-$('#fPlus',d).onclick=()=>{G.fontSize=Math.min(22,G.fontSize+1);applyFont();localStorage.setItem(GKEY,JSON.stringify(G))};
-
-async function copyText(t){
- try{
-  await navigator.clipboard.writeText(t);
-  return true;
- }catch(e){
-  let a=document.createElement('textarea');
-  a.value=t;
-  document.body.appendChild(a);
-  a.select();
-  document.execCommand('copy');
-  a.remove();
-  return true;
- }
+ 
 }
-
-$('#copy',d).onclick=async()=>{
- if(viewAll){toast('Saia do modo "Ver todas" para copiar uma MP individual.');return}
- if(!cur){toast('Selecione um jogador.');return}
-
- await copyText(MP(cur));
- toast('✅ MP de '+(N[cur]||cur)+' copiada');
-
- S.done[cur]=true;
- save();
-
- let nx=nextPending(cur);
- render(false);
- if(nx)select(nx);
+ 
+});
+ 
+return jogadores;
+}
+ 
+ 
+function esc(s){
+return String(s)
+.replace(/&/g,"&amp;")
+.replace(/</g,"&lt;")
+.replace(/>/g,"&gt;");
+}
+ 
+ 
+function totalAtaques(obj){
+ 
+if(!obj || !obj.aldeias)return 0;
+ 
+return obj.aldeias.reduce(function(t,a){
+return t+a.qtd;
+},0);
+ 
+}
+ 
+ 
+function linhas(obj){
+ 
+if(!obj || !obj.aldeias || !obj.aldeias.length){
+return "Nenhum";
+}
+ 
+return obj.aldeias.map(function(a,i){
+ 
+return (i+1)+". "+a.coord+" — "+a.qtd+
+(a.qtd===1?" ataque":" ataques");
+ 
+}).join("\n");
+ 
+}
+ 
+ 
+document.getElementById("jjfsgo").onclick=function(){
+ 
+var F=parseLista(
+document.getElementById("jjfsfull").value
+);
+ 
+var S=parseLista(
+document.getElementById("jjfssemi").value
+);
+ 
+var mapa={};
+ 
+Object.keys(F).forEach(function(n){
+mapa[n]=1;
+});
+ 
+Object.keys(S).forEach(function(n){
+mapa[n]=1;
+});
+ 
+ 
+ 
+ 
+ 
+var jogadores=Object.keys(mapa);
+ 
+if(!jogadores.length){
+ 
+alert("Nenhum jogador encontrado nas listas.");
+ 
+return;
+ 
+}
+ 
+ 
+var out=document.getElementById("jjfsout");
+ 
+out.innerHTML=
+'<div style="color:#8f8;margin-bottom:10px"><b>'+
+jogadores.length+
+' jogadores encontrados</b></div>';
+ 
+ 
+jogadores.forEach(function(nome){
+ 
+var full=F[nome]||{
+total:0,
+aldeias:[]
 };
-
-$('#copyAll',d).onclick=async()=>{
- let P=allPlayers();
- if(!P.length){toast('Nada para copiar ainda.');return}
- await copyText(MP_ALL(P));
- toast('✅ Todas as '+P.length+' MPs copiadas');
+ 
+var semi=S[nome]||{
+total:0,
+aldeias:[]
 };
-
-$('#exportTxt',d).onclick=()=>{
- let P=allPlayers();
- if(!P.length){toast('Nada para exportar ainda.');return}
- let blob=new Blob([MP_ALL(P)],{type:'text/plain;charset=utf-8'});
- let url=URL.createObjectURL(blob);
- let a=document.createElement('a');
- a.href=url;
- a.download='op_mps_'+(new Date().toISOString().slice(0,10))+'.txt';
- document.body.appendChild(a);
- a.click();
- a.remove();
- setTimeout(()=>URL.revokeObjectURL(url),4000);
- toast('📄 Arquivo exportado');
+ 
+var totalF=totalAtaques(full);
+var totalS=totalAtaques(semi);
+ 
+ 
+var body=
+`[b]⚔️ OP — FULLS E SEMI-FULLS ⚔️[/b]
+ 
+Abaixo estão os ataques que você deverá utilizar na operação.
+ 
+━━━━━━━━━━━━━━━━━━
+ 
+[b]🔴 FULLS — ${totalF}[/b]
+ 
+${linhas(full)}
+ 
+━━━━━━━━━━━━━━━━━━
+ 
+[b]🟠 SEMI-FULLS — ${totalS}[/b]
+ 
+${linhas(semi)}
+ 
+━━━━━━━━━━━━━━━━━━
+ 
+[b]📌 INSTRUÇÕES[/b]
+ 
+• Não utilizar esses ataques fora da OP.
+• Mantenha os FULLS e SEMI-FULLS reservados.
+• Aguarde a distribuição dos alvos.
+• Não altere ou espalhe nenhuma informação da operação.
+ 
+[b]⚠️ Siga exatamente as instruções recebidas para a OP.[/b]`;
+ 
+ 
+var box=document.createElement("div");
+ 
+box.style=
+"background:#222;border:1px solid #555;border-radius:6px;padding:9px;margin-bottom:8px";
+ 
+ 
+box.innerHTML=
+ 
+'<div style="display:flex;justify-content:space-between;align-items:center">'+
+ 
+'<b style="color:#f0c65d">'+
+esc(nome)+
+'</b>'+
+ 
+'<span style="font-size:11px;color:#aaa">'+
+ 
+'🔴 '+totalF+
+' | 🟠 '+totalS+
+ 
+'</span>'+
+ 
+'</div>'+
+ 
+'<div style="font-size:11px;color:#999;margin-top:3px">'+
+ 
+'Fulls: '+full.aldeias.length+
+' aldeias | Semi: '+
+semi.aldeias.length+
+' aldeias'+
+ 
+'</div>'+
+ 
+'<button style="width:100%;margin-top:7px;padding:7px;background:#444;color:#fff;border:0;border-radius:4px;cursor:pointer">COPIAR MP</button>';
+ 
+ 
+box.querySelector("button").onclick=function(){
+ 
+var b=this;
+ 
+navigator.clipboard.writeText(body).then(function(){
+ 
+b.textContent="✓ COPIADO";
+ 
+setTimeout(function(){
+ 
+b.textContent="COPIAR MP";
+ 
+},1000);
+ 
+});
+ 
 };
-
-$('#mark',d).onclick=()=>{
- if(viewAll){toast('Selecione um jogador no modo individual.');return}
- if(!cur){toast('Selecione um jogador.');return}
- S.done[cur]=!S.done[cur];
- save();
- render(false);
+ 
+ 
+out.appendChild(box);
+ 
+});
+ 
+ 
+var copiarTudo=document.createElement("button");
+ 
+copiarTudo.textContent="COPIAR TODAS AS MPs";
+ 
+copiarTudo.style=
+"width:100%;padding:9px;background:#d8aa45;color:#111;border:0;border-radius:5px;font-weight:bold;cursor:pointer;margin-top:5px";
+ 
+ 
+copiarTudo.onclick=function(){
+ 
+var tudo="";
+ 
+jogadores.forEach(function(nome){
+ 
+var full=F[nome]||{
+total:0,
+aldeias:[]
 };
-
-$('#reset',d).onclick=()=>{
- if(confirm('Limpar os status de revisado?')){
-  S.done={};
-  save();
-  render(false);
- }
+ 
+var semi=S[nome]||{
+total:0,
+aldeias:[]
 };
-
-// ---- arrastar (mover) pelo cabeçalho ----
-(function enableDrag(){
- let hdr=$('.h',d),dragging=false,sx=0,sy=0,sl=0,st=0;
- hdr.addEventListener('mousedown',e=>{
-  if(e.target.tagName==='BUTTON')return;
-  let r=d.getBoundingClientRect();
-  d.style.left=r.left+'px';
-  d.style.right='auto';
-  d.style.top=r.top+'px';
-  dragging=true;sx=e.clientX;sy=e.clientY;sl=r.left;st=r.top;
-  e.preventDefault();
- });
- document.addEventListener('mousemove',e=>{
-  if(!dragging)return;
-  let nl=sl+(e.clientX-sx),nt=st+(e.clientY-sy);
-  nl=Math.max(0,Math.min(window.innerWidth-60,nl));
-  nt=Math.max(0,Math.min(window.innerHeight-40,nt));
-  d.style.left=nl+'px';
-  d.style.top=nt+'px';
- });
- document.addEventListener('mouseup',()=>{
-  if(dragging){dragging=false;saveGeom()}
- });
-})();
-
-// ---- redimensionar (resize) pela alça ----
-(function enableResize(){
- let grip=$('#grip',d),resizing=false,sx=0,sy=0,sw=0,sh=0;
- grip.addEventListener('mousedown',e=>{
-  let r=d.getBoundingClientRect();
-  resizing=true;sx=e.clientX;sy=e.clientY;sw=r.width;sh=r.height;
-  e.preventDefault();
-  e.stopPropagation();
- });
- document.addEventListener('mousemove',e=>{
-  if(!resizing)return;
-  let nw=Math.max(520,sw+(e.clientX-sx));
-  let nh=Math.max(380,sh+(e.clientY-sy));
-  nw=Math.min(nw,window.innerWidth-10);
-  nh=Math.min(nh,window.innerHeight-10);
-  d.style.width=nw+'px';
-  d.style.height=nh+'px';
- });
- document.addEventListener('mouseup',()=>{
-  if(resizing){resizing=false;saveGeom()}
- });
-})();
-
-applyFont();
-render(true);
+ 
+var totalF=totalAtaques(full);
+var totalS=totalAtaques(semi);
+ 
+tudo+=
+`==============================
+JOGADOR: ${nome}
+==============================
+ 
+[b]⚔️ OP — FULLS E SEMI-FULLS ⚔️[/b]
+ 
+[b]🔴 FULLS — ${totalF}[/b]
+ 
+${linhas(full)}
+ 
+[b]🟠 SEMI-FULLS — ${totalS}[/b]
+ 
+${linhas(semi)}
+ 
+[b]📌 INSTRUÇÕES[/b]
+ 
+• Não utilizar esses ataques fora da OP.
+• Mantenha os FULLS e SEMI-FULLS reservados.
+• Aguarde a distribuição dos alvos.
+• Não altere ou espalhe nenhuma informação da operação.
+ 
+[b]⚠️ Siga exatamente as instruções recebidas para a OP.[/b]
+ 
+ 
+`;
+ 
+});
+ 
+ 
+navigator.clipboard.writeText(tudo).then(function(){
+ 
+copiarTudo.textContent="✓ TODAS COPIADAS";
+ 
+setTimeout(function(){
+ 
+copiarTudo.textContent="COPIAR TODAS AS MPs";
+ 
+},1200);
+ 
+});
+ 
+};
+ 
+ 
+out.appendChild(copiarTudo);
+ 
+};
+ 
 })();
