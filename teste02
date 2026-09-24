@@ -1,448 +1,670 @@
-javascript:(function(){
-
-var old=document.getElementById("jj-fs-mp");
-if(old){old.remove();return;}
-
-var CFGKEY="jjfsmp_cfg";
-var CFG=JSON.parse(localStorage.getItem(CFGKEY)||'{}');
-if(!CFG.dia)CFG.dia="22";
-if(!CFG.hora)CFG.hora="22:59:59:900";
-
-function salvarCFG(){
-localStorage.setItem(CFGKEY,JSON.stringify(CFG));
-}
-
-var d=document.createElement("div");
-d.id="jj-fs-mp";
-d.style="position:fixed;top:60px;right:10px;width:420px;max-height:88vh;overflow:auto;z-index:999999;background:#181818;border:2px solid #d8aa45;border-radius:10px;color:#eee;font:13px Arial;padding:12px;box-shadow:0 0 18px #000";
-
-d.innerHTML=`
-<div style="display:flex;justify-content:space-between;align-items:center">
-<b style="color:#f0c65d;font-size:17px">JJ — FULLS / SEMI-FULLS</b>
-<b id="jjfsx" style="cursor:pointer;color:#f66;font-size:18px">✕</b>
-</div>
-
-<div style="margin-top:10px;color:#ff6666"><b>🔴 LISTA DE FULLS</b></div>
-
-<textarea id="jjfsfull"
-placeholder="► Arken — 73 fulls no total
-   600|451 — 5 fulls
-   592|451 — 5 fulls"
-style="width:100%;height:165px;box-sizing:border-box;margin-top:5px;background:#252525;color:#fff;border:1px solid #555;border-radius:5px;padding:7px"></textarea>
-
-<div style="margin-top:10px;color:#f0a040"><b>🟠 LISTA DE SEMI-FULLS</b></div>
-
-<textarea id="jjfssemi"
-placeholder="► Arken — 10 semi fulls no total
-   601|451 — 3 semi fulls
-   602|451 — 2 semi-fulls"
-style="width:100%;height:165px;box-sizing:border-box;margin-top:5px;background:#252525;color:#fff;border:1px solid #555;border-radius:5px;padding:7px"></textarea>
-
-<div style="margin-top:10px;color:#f0c65d"><b>⏰ HORÁRIO DE CHEGADA DOS ATAQUES</b></div>
-
-<div style="display:flex;gap:6px;margin-top:5px">
-<input id="jjfsdia" placeholder="dia (ex: 22)" value="${CFG.dia}"
-style="flex:1;background:#252525;color:#fff;border:1px solid #555;border-radius:5px;padding:7px;box-sizing:border-box">
-<input id="jjfshora" placeholder="hh:mm:ss:ms" value="${CFG.hora}"
-style="flex:2;background:#252525;color:#fff;border:1px solid #555;border-radius:5px;padding:7px;box-sizing:border-box">
-</div>
-
-<button id="jjfsgo"
-style="width:100%;margin-top:12px;padding:10px;background:#d8aa45;color:#111;border:0;border-radius:6px;font-weight:bold;cursor:pointer">
-GERAR MPs
-</button>
-
-<div id="jjfsout" style="margin-top:12px"></div>
-`;
-
-document.body.appendChild(d);
-
-document.getElementById("jjfsx").onclick=function(){
-d.remove();
-};
-
-function parseLista(txt){
-
-var jogadores={};
-var atual=null;
-
-txt.split(/\r?\n/).forEach(function(linha){
-
-linha=linha.trim();
-
-if(!linha)return;
-
-
-/* LINHAS DAS ALDEIAS — checadas ANTES do cabeçalho, porque uma
-coordenada ("600|451 — 5 fulls") também bate no padrão genérico
-de cabeçalho ("nome — N fulls"). Só tratamos como cabeçalho se a
-linha NÃO começar com uma coordenada.
-Aceita:
-600|451 — 5 fulls
-600|451 — 5 semi fulls
-600|451 — 5 semi-fulls
-600|451 — 5 semifulls
-600|451 — 5
-*/
-
-var ehCoordenada=/^\d{3}\|\d{3}\b/.test(linha);
-
-if(ehCoordenada){
-
-var coord=linha.match(
-/(\d{3}\|\d{3})\s*[—–-]\s*(\d+)(?:\s*(?:semi[\s-]*fulls?|semifulls?|fulls?))?/i
-);
-
-if(coord && atual){
-
-jogadores[atual].aldeias.push({
-coord:coord[1],
-qtd:parseInt(coord[2],10)
-});
-
-}
-
-return;
-}
-
-
-/* CABEÇALHO DO JOGADOR
-Aceita:
-► Arken — 73 fulls no total
-► Arken — 10 semi fulls no total
-► Arken — 10 semi-fulls no total
-► Arken — 10 semifulls no total
-*/
-
-var head=linha.match(
-/^►?\s*(.+?)\s*[—–-]\s*(\d+)\s*(?:semi[\s-]*fulls?|semifulls?|fulls?|parci[ae]is?|ataques?|alvos?)\b.*$/i
-);
-
-if(head){
-
-atual=head[1].trim();
-
-if(!jogadores[atual]){
-jogadores[atual]={
-total:0,
-aldeias:[]
-};
-}
-
-jogadores[atual].total=parseInt(head[2],10);
-
-return;
-}
-
-
-/* FORMATO SIMPLES TAMBÉM ACEITO
-Arken — 600|451, 592|451
-*/
-
-var simples=linha.match(/^(.+?)\s*[—–-]\s*(.+)$/);
-
-if(simples){
-
-var nome=simples[1].replace(/^►\s*/,"").trim();
-var coords=simples[2].match(/\d{3}\|\d{3}/g);
-
-if(coords){
-
-if(!jogadores[nome]){
-jogadores[nome]={
-total:0,
-aldeias:[]
-};
-}
-
-coords.forEach(function(c){
-
-jogadores[nome].aldeias.push({
-coord:c,
-qtd:1
-});
-
-jogadores[nome].total++;
-
-});
-
-}
-
-}
-
-});
-
-return jogadores;
-}
-
-
-function esc(s){
-return String(s)
-.replace(/&/g,"&amp;")
-.replace(/</g,"&lt;")
-.replace(/>/g,"&gt;");
-}
-
-
-function totalAtaques(obj){
-
-if(!obj || !obj.aldeias)return 0;
-
-return obj.aldeias.reduce(function(t,a){
-return t+a.qtd;
-},0);
-
-}
-
-
-function linhas(obj){
-
-if(!obj || !obj.aldeias || !obj.aldeias.length){
-return "Nenhum";
-}
-
-return obj.aldeias.map(function(a,i){
-
-return (i+1)+". "+a.coord+" — "+a.qtd+
-(a.qtd===1?" ataque":" ataques");
-
-}).join("\n");
-
-}
-
-
-document.getElementById("jjfsgo").onclick=function(){
-
-CFG.dia=(document.getElementById("jjfsdia").value||"22").trim();
-CFG.hora=(document.getElementById("jjfshora").value||"22:59:59:900").trim();
-salvarCFG();
-
-var horarioTxt=
-"• Os ataques devem chegar no dia "+CFG.dia+" às "+CFG.hora+
-" CRAVADO — não pode passar desse horário.\n"+
-"• Se cair um pouco adiantado ou atrasado, não precisa cancelar.";
-
-var F=parseLista(
-document.getElementById("jjfsfull").value
-);
-
-var S=parseLista(
-document.getElementById("jjfssemi").value
-);
-
-var mapa={};
-
-Object.keys(F).forEach(function(n){
-mapa[n]=1;
-});
-
-Object.keys(S).forEach(function(n){
-mapa[n]=1;
-});
-
-
-
-
-
-var jogadores=Object.keys(mapa);
-
-if(!jogadores.length){
-
-alert("Nenhum jogador encontrado nas listas.");
-
-return;
-
-}
-
-
-var out=document.getElementById("jjfsout");
-
-out.innerHTML=
-'<div style="color:#8f8;margin-bottom:10px"><b>'+
-jogadores.length+
-' jogadores encontrados</b></div>';
-
-
-jogadores.forEach(function(nome){
-
-var full=F[nome]||{
-total:0,
-aldeias:[]
-};
-
-var semi=S[nome]||{
-total:0,
-aldeias:[]
-};
-
-var totalF=totalAtaques(full);
-var totalS=totalAtaques(semi);
-
-
-var body=
-`[b]⚔️ OP — FULLS E SEMI-FULLS ⚔️[/b]
-
-Abaixo estão os ataques que você deverá utilizar na operação.
-
-━━━━━━━━━━━━━━━━━━
-
-[b]🔴 FULLS — ${totalF}[/b]
-
-${linhas(full)}
-
-━━━━━━━━━━━━━━━━━━
-
-[b]🟠 SEMI-FULLS — ${totalS}[/b]
-
-${linhas(semi)}
-
-━━━━━━━━━━━━━━━━━━
-
-[b]📌 INSTRUÇÕES[/b]
-
-• Não utilizar esses ataques fora da OP.
-• Mantenha os FULLS e SEMI-FULLS reservados.
-• Aguarde a distribuição dos alvos.
-• Não altere ou espalhe nenhuma informação da operação.
-${horarioTxt}
-
-[b]⚠️ Siga exatamente as instruções recebidas para a OP.[/b]`;
-
-
-var box=document.createElement("div");
-
-box.style=
-"background:#222;border:1px solid #555;border-radius:6px;padding:9px;margin-bottom:8px";
-
-
-box.innerHTML=
-
-'<div style="display:flex;justify-content:space-between;align-items:center">'+
-
-'<b style="color:#f0c65d">'+
-esc(nome)+
-'</b>'+
-
-'<span style="font-size:11px;color:#aaa">'+
-
-'🔴 '+totalF+
-' | 🟠 '+totalS+
-
-'</span>'+
-
-'</div>'+
-
-'<div style="font-size:11px;color:#999;margin-top:3px">'+
-
-'Fulls: '+full.aldeias.length+
-' aldeias | Semi: '+
-semi.aldeias.length+
-' aldeias'+
-
-'</div>'+
-
-'<button style="width:100%;margin-top:7px;padding:7px;background:#444;color:#fff;border:0;border-radius:4px;cursor:pointer">COPIAR MP</button>';
-
-
-box.querySelector("button").onclick=function(){
-
-var b=this;
-
-navigator.clipboard.writeText(body).then(function(){
-
-b.textContent="✓ COPIADO";
-
-setTimeout(function(){
-
-b.textContent="COPIAR MP";
-
-},1000);
-
-});
-
-};
-
-
-out.appendChild(box);
-
-});
-
-
-var copiarTudo=document.createElement("button");
-
-copiarTudo.textContent="COPIAR TODAS AS MPs";
-
-copiarTudo.style=
-"width:100%;padding:9px;background:#d8aa45;color:#111;border:0;border-radius:5px;font-weight:bold;cursor:pointer;margin-top:5px";
-
-
-copiarTudo.onclick=function(){
-
-var tudo="";
-
-jogadores.forEach(function(nome){
-
-var full=F[nome]||{
-total:0,
-aldeias:[]
-};
-
-var semi=S[nome]||{
-total:0,
-aldeias:[]
-};
-
-var totalF=totalAtaques(full);
-var totalS=totalAtaques(semi);
-
-tudo+=
-`==============================
-JOGADOR: ${nome}
-==============================
-
-[b]⚔️ OP — FULLS E SEMI-FULLS ⚔️[/b]
-
-[b]🔴 FULLS — ${totalF}[/b]
-
-${linhas(full)}
-
-[b]🟠 SEMI-FULLS — ${totalS}[/b]
-
-${linhas(semi)}
-
-[b]📌 INSTRUÇÕES[/b]
-
-• Não utilizar esses ataques fora da OP.
-• Mantenha os FULLS e SEMI-FULLS reservados.
-• Aguarde a distribuição dos alvos.
-• Não altere ou espalhe nenhuma informação da operação.
-${horarioTxt}
-
-[b]⚠️ Siga exatamente as instruções recebidas para a OP.[/b]
-
-
-`;
-
-});
-
-
-navigator.clipboard.writeText(tudo).then(function(){
-
-copiarTudo.textContent="✓ TODAS COPIADAS";
-
-setTimeout(function(){
-
-copiarTudo.textContent="COPIAR TODAS AS MPs";
-
-},1200);
-
-});
-
-};
-
-
-out.appendChild(copiarTudo);
-
-};
+javascript:(function () {
+
+    const old = document.getElementById("jj-opgen");
+    if (old) { old.remove(); return; }
+
+    if (typeof game_data === "undefined" || !game_data.village) {
+        alert("Abra qualquer página do jogo (com uma aldeia selecionada) antes de usar este script.");
+        return;
+    }
+
+    const gold = "#d8aa45";
+    const myVillageId = game_data.village.id;
+
+    // ---------------- estado global do painel ----------------
+    let ownFulls = [];      // {player, coord, x, y, axe, light, ram}
+    let ownDef = [];        // {player, coord, x, y, spear, sword, archer, heavy}
+    let targets = [];       // {coord, x, y, owner}
+    let assignments = [];   // {target, fulls:[{coord,x,y,player,dist,role}]}
+    let worldSpeed = 1, unitSpeedCfg = 1;
+
+    const BASE_SPEED = { spear: 18, sword: 22, axe: 18, archer: 18, spy: 9, light: 10, marcher: 10, heavy: 11, ram: 30, catapult: 30, paladin: 10, snob: 35, militia: 20 };
+
+    // ---------------- painel ----------------
+    const panel = document.createElement("div");
+    panel.id = "jj-opgen";
+    panel.style.cssText = `
+        position:fixed; z-index:999999; top:40px; right:8px;
+        width:380px; max-width:94vw; max-height:90vh; overflow:auto; box-sizing:border-box;
+        background:linear-gradient(145deg,#17191d 0%,#08090c 60%,#121419 100%);
+        border:1px solid #8a6728; border-radius:14px;
+        color:#eee; font-family:-apple-system,BlinkMacSystemFont,Verdana,Arial;
+        box-shadow:0 14px 42px rgba(0,0,0,.74);
+        font-size:11px;
+    `;
+    panel.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid rgba(216,170,69,.4);position:sticky;top:0;background:#0c0d10;z-index:2;border-radius:14px 14px 0 0;">
+            <div style="font-weight:800;color:${gold};font-size:12px;">⚔️ GERADOR DE OP</div>
+            <span id="jjopg-x" style="cursor:pointer;color:#ddd;font-size:14px;">✕</span>
+        </div>
+        <div style="padding:10px 12px;">
+
+            <details id="sec1" open style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
+                <summary style="cursor:pointer;color:${gold};font-weight:700;">1️⃣ Importar Fulls da tribo</summary>
+                <div style="margin-top:8px;">
+                    <label style="display:block;color:#bbb;margin-bottom:3px;">TAG da minha tribo</label>
+                    <input id="jjopg-tag" placeholder="Ex: HNK" style="width:100%;box-sizing:border-box;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;">
+                    <div style="display:flex;gap:6px;margin-bottom:8px;">
+                        <div style="flex:1;"><label style="display:block;color:#bbb;margin-bottom:3px;">Mín. Machado</label>
+                        <input id="jjopg-axe" type="number" value="0" style="width:100%;box-sizing:border-box;padding:7px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;"></div>
+                        <div style="flex:1;"><label style="display:block;color:#bbb;margin-bottom:3px;">Mín. Cav. Leve</label>
+                        <input id="jjopg-light" type="number" value="0" style="width:100%;box-sizing:border-box;padding:7px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;"></div>
+                    </div>
+                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:10px;color:#bbb;"><input id="jjopg-ram" type="checkbox"> Exigir aríete</label>
+                    <button id="jjopg-import" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">📥 IMPORTAR FULLS</button>
+                    <div id="jjopg-status" style="color:#999;margin-bottom:6px;line-height:15px;"></div>
+                    <div id="jjopg-results"></div>
+                </div>
+            </details>
+
+            <details id="sec2" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
+                <summary style="cursor:pointer;color:${gold};font-weight:700;">2️⃣ Importar Defesas da tribo</summary>
+                <div style="margin-top:8px;">
+                    <div style="color:#999;margin-bottom:6px;">Usa a mesma TAG da Etapa 1. Lista lanceiro+espada+arqueiro+cavalaria pesada por aldeia.</div>
+                    <button id="jjopg-import-def" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🛡️ IMPORTAR DEFESAS</button>
+                    <div id="jjopg-def-status" style="color:#999;margin-bottom:6px;line-height:15px;"></div>
+                    <div id="jjopg-def-results"></div>
+                </div>
+            </details>
+
+            <details id="sec3" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
+                <summary style="cursor:pointer;color:${gold};font-weight:700;">3️⃣ Coletar alvos por K (tribo inimiga)</summary>
+                <div style="margin-top:8px;">
+                    <label style="display:block;color:#bbb;margin-bottom:3px;">TAG da tribo inimiga</label>
+                    <input id="jjopg-etag" placeholder="Ex: ABC" style="width:100%;box-sizing:border-box;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;">
+                    <label style="display:block;color:#bbb;margin-bottom:3px;">Continente (K)</label>
+                    <input id="jjopg-k" type="number" placeholder="Ex: 55" style="width:100%;box-sizing:border-box;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;">
+                    <button id="jjopg-collect-k" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🗺️ COLETAR ALVOS DO K</button>
+                    <div id="jjopg-k-status" style="color:#999;margin-bottom:6px;line-height:15px;"></div>
+                    <div id="jjopg-k-results"></div>
+                </div>
+            </details>
+
+            <details id="sec4" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
+                <summary style="cursor:pointer;color:${gold};font-weight:700;">4️⃣ Colar coordenadas manualmente</summary>
+                <div style="margin-top:8px;">
+                    <textarea id="jjopg-paste" placeholder="Cole coordenadas, ex: 500|500 501|502 ..." style="width:100%;box-sizing:border-box;height:60px;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;"></textarea>
+                    <button id="jjopg-paste-add" style="width:100%;padding:9px;margin-bottom:6px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">➕ ADICIONAR AOS ALVOS</button>
+                    <button id="jjopg-paste-mark" style="width:100%;padding:8px;margin-bottom:8px;background:#222;color:${gold};font-weight:700;border:1px solid ${gold};border-radius:8px;cursor:pointer;">📍 DESTACAR NO MAPA REAL (se estiver no mapa)</button>
+                    <div id="jjopg-paste-status" style="color:#999;line-height:15px;"></div>
+                </div>
+            </details>
+
+            <details id="sec5" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
+                <summary style="cursor:pointer;color:${gold};font-weight:700;">5️⃣ Distribuir fulls por proximidade</summary>
+                <div style="margin-top:8px;">
+                    <label style="display:block;color:#bbb;margin-bottom:3px;">Mín. fulls por alvo</label>
+                    <input id="jjopg-minfulls" type="number" value="1" min="1" style="width:100%;box-sizing:border-box;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;">
+                    <button id="jjopg-distribute" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🎯 GERAR DISTRIBUIÇÃO</button>
+                    <div id="jjopg-dist-status" style="color:#999;margin-bottom:6px;line-height:15px;"></div>
+                    <div id="jjopg-dist-results"></div>
+                </div>
+            </details>
+
+            <details id="sec6" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
+                <summary style="cursor:pointer;color:${gold};font-weight:700;">6️⃣ Sincronizar horário de chegada</summary>
+                <div style="margin-top:8px;">
+                    <div style="color:#999;margin-bottom:6px;">Deixe em branco para calcular a partir de "enviar agora" usando o full mais lento como referência.</div>
+                    <label style="display:block;color:#bbb;margin-bottom:3px;">Horário de chegada desejado (HH:MM)</label>
+                    <input id="jjopg-arrival" placeholder="Ex: 20:30" style="width:100%;box-sizing:border-box;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;">
+                    <button id="jjopg-sync" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🕐 CALCULAR SINCRONIZAÇÃO</button>
+                    <div id="jjopg-sync-status" style="color:#999;margin-bottom:6px;line-height:15px;"></div>
+                    <div id="jjopg-sync-results"></div>
+                </div>
+            </details>
+
+            <details id="sec7" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
+                <summary style="cursor:pointer;color:${gold};font-weight:700;">7️⃣ Gerador de MP</summary>
+                <div style="margin-top:8px;">
+                    <button id="jjopg-genmp" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">✉️ GERAR MENSAGENS</button>
+                    <div id="jjopg-mp-status" style="color:#999;margin-bottom:6px;line-height:15px;"></div>
+                    <div id="jjopg-mp-results"></div>
+                </div>
+            </details>
+
+            <details id="sec8" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
+                <summary style="cursor:pointer;color:${gold};font-weight:700;">8️⃣ Visualizar plano no mapa real</summary>
+                <div style="margin-top:8px;">
+                    <div style="color:#999;margin-bottom:6px;">Só funciona se você estiver com o mapa do jogo (screen=map) aberto. Verde = aldeias de origem do plano, Vermelho = alvos.</div>
+                    <button id="jjopg-showmap" style="width:100%;padding:9px;margin-bottom:6px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🗺️ DESTACAR PLANO NO MAPA</button>
+                    <button id="jjopg-clearmap" style="width:100%;padding:8px;background:#2a1414;color:#e88;font-weight:700;border:1px solid #a55;border-radius:8px;cursor:pointer;">🗑️ LIMPAR DESTAQUES</button>
+                    <div id="jjopg-map-status" style="color:#999;margin-top:6px;"></div>
+                </div>
+            </details>
+
+            <details id="sec9" style="margin-bottom:4px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
+                <summary style="cursor:pointer;color:${gold};font-weight:700;">9️⃣ Exportar plano final</summary>
+                <div style="margin-top:8px;">
+                    <button id="jjopg-export-copy" style="width:100%;padding:9px;margin-bottom:6px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">📋 COPIAR TABELA DO PLANO</button>
+                    <button id="jjopg-export-file" style="width:100%;padding:8px;background:#222;color:${gold};font-weight:700;border:1px solid ${gold};border-radius:8px;cursor:pointer;">⬇️ BAIXAR .TXT</button>
+                    <div id="jjopg-export-status" style="color:#999;margin-top:6px;"></div>
+                </div>
+            </details>
+
+        </div>
+    `;
+    document.body.appendChild(panel);
+    document.getElementById("jjopg-x").onclick = function () { panel.remove(); };
+
+    // ---------------- helpers genéricos ----------------
+    async function fetchText(url) {
+        const r = await fetch(url, { credentials: "same-origin" });
+        return await r.text();
+    }
+    function parseCSV(text) {
+        return text.trim().split("\n").filter(Boolean).map(function (line) { return line.split(","); });
+    }
+    function decodeName(s) {
+        try { return decodeURIComponent(String(s).replace(/\+/g, " ")); }
+        catch (e) { return s; }
+    }
+    function parseCoord(str) {
+        const m = String(str).match(/(\d{1,3})\|(\d{1,3})/);
+        if (!m) return null;
+        return { x: parseInt(m[1], 10), y: parseInt(m[2], 10), coord: m[0] };
+    }
+    function dist(a, b) {
+        return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
+    }
+    async function getTribeMembers(tag) {
+        const allyText = await fetchText("/map/ally.txt");
+        const allies = parseCSV(allyText);
+        const match = allies.find(function (a) { return decodeName(a[2]).toLowerCase() === tag.toLowerCase(); });
+        if (!match) return null;
+        const allyId = match[0];
+        const playerText = await fetchText("/map/player.txt");
+        const players = parseCSV(playerText);
+        return players.filter(function (p) { return p[2] === allyId; })
+            .map(function (p) { return { id: p[0], name: decodeName(p[1]) }; });
+    }
+    function findHeaderRow(table) {
+        const rows = table.querySelectorAll("tr");
+        for (let i = 0; i < rows.length; i++) { if (rows[i].querySelector("img")) return rows[i]; }
+        return rows[0] || null;
+    }
+    function findTroopTable(doc) {
+        const tables = Array.from(doc.querySelectorAll("table.vis"));
+        return tables.find(function (t) { const hr = findHeaderRow(t); return hr && hr.querySelector("img"); });
+    }
+    function findUnitColumns(headerRow) {
+        const cells = Array.from(headerRow.children);
+        const map = {};
+        cells.forEach(function (cell, idx) {
+            let key = cell.getAttribute("data-unit");
+            const img = cell.querySelector("img");
+            if (!key && img && img.src) {
+                const m = img.src.match(/unit_(\w+)\.(png|webp|gif)/i);
+                if (m) key = m[1];
+            }
+            if (key) map[key] = idx;
+        });
+        return map;
+    }
+    function copyText(btn, text) {
+        navigator.clipboard.writeText(text).then(function () {
+            const orig = btn.textContent;
+            btn.textContent = "✅ Copiado!";
+            setTimeout(function () { btn.textContent = orig; }, 1400);
+        }).catch(function () { prompt("Copie manualmente:", text); });
+    }
+
+    // ================= SEÇÃO 1: IMPORTAR FULLS =================
+    async function importFulls() {
+        const tag = document.getElementById("jjopg-tag").value.trim();
+        const minAxe = parseInt(document.getElementById("jjopg-axe").value, 10) || 0;
+        const minLight = parseInt(document.getElementById("jjopg-light").value, 10) || 0;
+        const needRam = document.getElementById("jjopg-ram").checked;
+        const status = document.getElementById("jjopg-status");
+        const resultsBox = document.getElementById("jjopg-results");
+        resultsBox.innerHTML = "";
+        if (!tag) { status.textContent = "Digite a TAG da sua tribo."; return; }
+
+        status.textContent = "Buscando membros da tribo...";
+        let members;
+        try { members = await getTribeMembers(tag); }
+        catch (e) { status.textContent = "Erro ao buscar dados da tribo."; console.error(e); return; }
+        if (!members) { status.textContent = "Tribo não encontrada. Confira a TAG."; return; }
+        if (!members.length) { status.textContent = "Tribo sem membros listados."; return; }
+
+        status.textContent = "Lendo tropas... (0/" + members.length + ")";
+        const results = [];
+        let done = 0, errs = 0;
+
+        for (const member of members) {
+            try {
+                const url = "/game.php?screen=ally&mode=members_troops&player_id=" + member.id + "&village=" + myVillageId;
+                const html = await fetchText(url);
+                const doc = new DOMParser().parseFromString(html, "text/html");
+                const table = findTroopTable(doc);
+                if (table) {
+                    const headerRow = findHeaderRow(table);
+                    const cols = findUnitColumns(headerRow);
+                    const rows = Array.from(table.querySelectorAll("tr")).filter(function (r) { return r !== headerRow; });
+                    rows.forEach(function (row) {
+                        const cells = row.children;
+                        function getVal(key) {
+                            const idx = cols[key];
+                            if (idx === undefined || !cells[idx]) return 0;
+                            const v = parseInt(cells[idx].textContent.replace(/\D/g, ""), 10);
+                            return isNaN(v) ? 0 : v;
+                        }
+                        const axe = getVal("axe"), light = getVal("light"), ram = getVal("ram");
+                        const pc = parseCoord(row.textContent);
+                        if (!pc) return;
+                        const isFull = axe >= minAxe && light >= minLight && (!needRam || ram > 0);
+                        if (isFull && (axe > 0 || light > 0 || ram > 0)) {
+                            results.push({ player: member.name, coord: pc.coord, x: pc.x, y: pc.y, axe: axe, light: light, ram: ram });
+                        }
+                    });
+                } else { errs++; }
+            } catch (e) { errs++; console.warn("Falha ao ler tropas de", member.name, e); }
+            done++;
+            status.textContent = "Lendo tropas... (" + done + "/" + members.length + ")";
+            await new Promise(function (r) { setTimeout(r, 120); });
+        }
+
+        ownFulls = results;
+        status.textContent = "Concluído. " + results.length + " full(s)." + (errs ? " (" + errs + " falha(s) de leitura)" : "");
+        renderFullsResults();
+    }
+    function renderFullsResults() {
+        const box = document.getElementById("jjopg-results");
+        if (!ownFulls.length) { box.innerHTML = '<div style="color:#999;">Nenhuma full encontrada.</div>'; return; }
+        const byPlayer = {};
+        ownFulls.forEach(function (r) { byPlayer[r.player] = (byPlayer[r.player] || 0) + 1; });
+        let html = '<div style="max-height:180px;overflow:auto;margin-bottom:8px;border:1px solid rgba(216,170,69,.2);border-radius:8px;">';
+        Object.keys(byPlayer).sort(function (a, b) { return byPlayer[b] - byPlayer[a]; }).forEach(function (p) {
+            html += '<div style="display:flex;justify-content:space-between;padding:5px 8px;border-bottom:1px solid rgba(216,170,69,.12);"><span>' + p + '</span><b style="color:' + gold + ';">' + byPlayer[p] + '</b></div>';
+        });
+        html += '</div><button id="jjopg-copy" style="width:100%;padding:8px;background:#222;color:' + gold + ';font-weight:700;border:1px solid ' + gold + ';border-radius:8px;cursor:pointer;">📋 COPIAR LISTA (' + ownFulls.length + ')</button>';
+        box.innerHTML = html;
+        document.getElementById("jjopg-copy").onclick = function () {
+            const text = ownFulls.map(function (r) { return r.coord + " - " + r.player + " (M:" + r.axe + " CL:" + r.light + (r.ram ? " AR:" + r.ram : "") + ")"; }).join("\n");
+            copyText(this, text);
+        };
+    }
+    document.getElementById("jjopg-import").onclick = importFulls;
+
+    // ================= SEÇÃO 2: IMPORTAR DEFESAS =================
+    async function importDefesas() {
+        const tag = document.getElementById("jjopg-tag").value.trim();
+        const status = document.getElementById("jjopg-def-status");
+        const resultsBox = document.getElementById("jjopg-def-results");
+        resultsBox.innerHTML = "";
+        if (!tag) { status.textContent = "Preencha a TAG na Etapa 1 primeiro."; return; }
+
+        status.textContent = "Buscando membros da tribo...";
+        let members;
+        try { members = await getTribeMembers(tag); }
+        catch (e) { status.textContent = "Erro ao buscar dados da tribo."; console.error(e); return; }
+        if (!members) { status.textContent = "Tribo não encontrada."; return; }
+
+        status.textContent = "Lendo defesas... (0/" + members.length + ")";
+        const results = [];
+        let done = 0;
+
+        for (const member of members) {
+            try {
+                const url = "/game.php?screen=ally&mode=members_troops&player_id=" + member.id + "&village=" + myVillageId;
+                const html = await fetchText(url);
+                const doc = new DOMParser().parseFromString(html, "text/html");
+                const table = findTroopTable(doc);
+                if (table) {
+                    const headerRow = findHeaderRow(table);
+                    const cols = findUnitColumns(headerRow);
+                    const rows = Array.from(table.querySelectorAll("tr")).filter(function (r) { return r !== headerRow; });
+                    rows.forEach(function (row) {
+                        const cells = row.children;
+                        function getVal(key) {
+                            const idx = cols[key];
+                            if (idx === undefined || !cells[idx]) return 0;
+                            const v = parseInt(cells[idx].textContent.replace(/\D/g, ""), 10);
+                            return isNaN(v) ? 0 : v;
+                        }
+                        const spear = getVal("spear"), sword = getVal("sword"), archer = getVal("archer"), heavy = getVal("heavy");
+                        const pc = parseCoord(row.textContent);
+                        if (!pc) return;
+                        if (spear + sword + archer + heavy > 0) {
+                            results.push({ player: member.name, coord: pc.coord, x: pc.x, y: pc.y, spear: spear, sword: sword, archer: archer, heavy: heavy });
+                        }
+                    });
+                }
+            } catch (e) { console.warn("Falha ao ler defesa de", member.name, e); }
+            done++;
+            status.textContent = "Lendo defesas... (" + done + "/" + members.length + ")";
+            await new Promise(function (r) { setTimeout(r, 120); });
+        }
+
+        ownDef = results;
+        status.textContent = "Concluído. " + results.length + " aldeia(s) com defesa.";
+        let html = '<div style="max-height:180px;overflow:auto;border:1px solid rgba(216,170,69,.2);border-radius:8px;">';
+        results.sort(function (a, b) { return (b.spear + b.sword + b.archer + b.heavy) - (a.spear + a.sword + a.archer + a.heavy); });
+        results.forEach(function (r) {
+            html += '<div style="padding:5px 8px;border-bottom:1px solid rgba(216,170,69,.12);">' + r.coord + ' - ' + r.player +
+                ' <span style="color:#999;">(L:' + r.spear + ' E:' + r.sword + ' Aq:' + r.archer + ' CP:' + r.heavy + ')</span></div>';
+        });
+        html += '</div>';
+        resultsBox.innerHTML = html;
+    }
+    document.getElementById("jjopg-import-def").onclick = importDefesas;
+
+    // ================= SEÇÃO 3: COLETAR ALVOS POR K =================
+    function computeK(x, y) { return Math.floor(y / 100) * 10 + Math.floor(x / 100); }
+
+    async function collectByK() {
+        const tag = document.getElementById("jjopg-etag").value.trim();
+        const k = parseInt(document.getElementById("jjopg-k").value, 10);
+        const status = document.getElementById("jjopg-k-status");
+        const box = document.getElementById("jjopg-k-results");
+        box.innerHTML = "";
+        if (!tag || isNaN(k)) { status.textContent = "Preencha a TAG inimiga e o K."; return; }
+
+        status.textContent = "Buscando dados...";
+        try {
+            const allyText = await fetchText("/map/ally.txt");
+            const allies = parseCSV(allyText);
+            const allyMatch = allies.find(function (a) { return decodeName(a[2]).toLowerCase() === tag.toLowerCase(); });
+            if (!allyMatch) { status.textContent = "Tribo inimiga não encontrada."; return; }
+            const allyId = allyMatch[0];
+
+            const playerText = await fetchText("/map/player.txt");
+            const players = parseCSV(playerText);
+            const playerIds = {};
+            players.forEach(function (p) { if (p[2] === allyId) playerIds[p[0]] = decodeName(p[1]); });
+
+            const villageText = await fetchText("/map/village.txt");
+            const villages = parseCSV(villageText);
+            const found = [];
+            villages.forEach(function (v) {
+                const x = parseInt(v[2], 10), y = parseInt(v[3], 10), playerId = v[4];
+                if (playerId && playerIds[playerId] && computeK(x, y) === k) {
+                    found.push({ coord: x + "|" + y, x: x, y: y, owner: playerIds[playerId] });
+                }
+            });
+
+            targets = found;
+            status.textContent = "Concluído. " + found.length + " aldeia(s) encontrada(s) no K" + k + ".";
+            renderTargets();
+        } catch (e) { status.textContent = "Erro ao coletar alvos."; console.error(e); }
+    }
+    function renderTargets() {
+        const box = document.getElementById("jjopg-k-results");
+        if (!targets.length) { box.innerHTML = '<div style="color:#999;">Nenhum alvo coletado.</div>'; return; }
+        const byPlayer = {};
+        targets.forEach(function (t) { byPlayer[t.owner] = (byPlayer[t.owner] || 0) + 1; });
+        let html = '<div style="max-height:150px;overflow:auto;margin-bottom:8px;border:1px solid rgba(216,170,69,.2);border-radius:8px;">';
+        Object.keys(byPlayer).sort(function (a, b) { return byPlayer[b] - byPlayer[a]; }).forEach(function (p) {
+            html += '<div style="display:flex;justify-content:space-between;padding:5px 8px;border-bottom:1px solid rgba(216,170,69,.12);"><span>' + p + '</span><b style="color:' + gold + ';">' + byPlayer[p] + '</b></div>';
+        });
+        html += '</div><button id="jjopg-k-copy" style="width:100%;padding:8px;background:#222;color:' + gold + ';font-weight:700;border:1px solid ' + gold + ';border-radius:8px;cursor:pointer;">📋 COPIAR COORDENADAS (' + targets.length + ')</button>';
+        box.innerHTML = html;
+        document.getElementById("jjopg-k-copy").onclick = function () {
+            const text = targets.map(function (t) { return t.coord + " - " + t.owner; }).join("\n");
+            copyText(this, text);
+        };
+    }
+    document.getElementById("jjopg-collect-k").onclick = collectByK;
+
+    // ================= SEÇÃO 4: COLAR COORDENADAS =================
+    document.getElementById("jjopg-paste-add").onclick = function () {
+        const text = document.getElementById("jjopg-paste").value;
+        const matches = text.match(/\d{1,3}\|\d{1,3}/g) || [];
+        let added = 0;
+        matches.forEach(function (m) {
+            const pc = parseCoord(m);
+            if (pc && !targets.find(function (t) { return t.coord === pc.coord; })) {
+                targets.push({ coord: pc.coord, x: pc.x, y: pc.y, owner: "(manual)" });
+                added++;
+            }
+        });
+        document.getElementById("jjopg-paste-status").textContent = added + " coordenada(s) adicionada(s) aos alvos. Total: " + targets.length + ".";
+        renderTargets();
+    };
+    document.getElementById("jjopg-paste-mark").onclick = function () {
+        const status = document.getElementById("jjopg-paste-status");
+        if (typeof TWMap === "undefined" || !TWMap.villages) {
+            status.textContent = "Abra o mapa do jogo (screen=map) para destacar as aldeias.";
+            return;
+        }
+        const text = document.getElementById("jjopg-paste").value;
+        const matches = text.match(/\d{1,3}\|\d{1,3}/g) || [];
+        let marked = 0;
+        matches.forEach(function (m) {
+            const pc = parseCoord(m);
+            if (!pc) return;
+            const v = TWMap.villages[pc.x * 1000 + pc.y];
+            if (v) {
+                const el = document.getElementById("map_village_" + v.id);
+                if (el) { el.style.filter = "brightness(220%) grayscale(100%)"; marked++; }
+            }
+        });
+        status.textContent = marked + " de " + matches.length + " aldeia(s) destacada(s) no mapa (só as já carregadas na tela).";
+    };
+
+    // ================= SEÇÃO 5: DISTRIBUIÇÃO POR PROXIMIDADE =================
+    document.getElementById("jjopg-distribute").onclick = function () {
+        const status = document.getElementById("jjopg-dist-status");
+        const box = document.getElementById("jjopg-dist-results");
+        box.innerHTML = "";
+        const minFulls = Math.max(1, parseInt(document.getElementById("jjopg-minfulls").value, 10) || 1);
+
+        if (!ownFulls.length) { status.textContent = "Importe fulls na Etapa 1 primeiro."; return; }
+        if (!targets.length) { status.textContent = "Colete alvos nas Etapas 3/4 primeiro."; return; }
+
+        const pool = ownFulls.slice();
+        assignments = [];
+
+        targets.forEach(function (target) {
+            const withDist = pool.map(function (f) { return { full: f, d: dist(target, f) }; })
+                .sort(function (a, b) { return a.d - b.d; });
+            const chosen = withDist.slice(0, minFulls);
+            chosen.forEach(function (c) {
+                const idx = pool.indexOf(c.full);
+                if (idx >= 0) pool.splice(idx, 1);
+            });
+            if (chosen.length) {
+                assignments.push({
+                    target: target,
+                    fulls: chosen.map(function (c, i) {
+                        return { coord: c.full.coord, x: c.full.x, y: c.full.y, player: c.full.player, dist: c.d, role: i === 0 ? "NT (nobre)" : "Full apoio" };
+                    })
+                });
+            }
+        });
+
+        const semFull = targets.length - assignments.length;
+        status.textContent = "Distribuição gerada para " + assignments.length + " de " + targets.length + " alvo(s)." + (semFull ? " (" + semFull + " sem fulls suficientes)" : "");
+
+        let html = "";
+        assignments.forEach(function (a) {
+            html += '<div style="border:1px solid rgba(216,170,69,.2);border-radius:8px;padding:6px 8px;margin-bottom:6px;">';
+            html += '<div style="color:' + gold + ';font-weight:700;margin-bottom:4px;">🎯 Alvo: ' + a.target.coord + ' (' + a.target.owner + ')</div>';
+            a.fulls.forEach(function (f) {
+                html += '<div style="padding:2px 0;color:#ccc;">' + (f.role === "NT (nobre)" ? "👑 " : "⚔️ ") + f.coord + ' - ' + f.player + ' <span style="color:#888;">(' + f.dist.toFixed(1) + ' campos, ' + f.role + ')</span></div>';
+            });
+            html += '</div>';
+        });
+        box.innerHTML = html;
+    };
+
+    // ================= SEÇÃO 6: SINCRONIZAÇÃO DE HORÁRIO =================
+    async function fetchWorldConfig() {
+        try {
+            const xml = await fetchText("/interface.php?func=get_config");
+            const doc = new DOMParser().parseFromString(xml, "text/xml");
+            const speedEl = doc.querySelector("speed");
+            const unitSpeedEl = doc.querySelector("unit_speed");
+            worldSpeed = speedEl ? parseFloat(speedEl.textContent) : 1;
+            unitSpeedCfg = unitSpeedEl ? parseFloat(unitSpeedEl.textContent) : 1;
+        } catch (e) { worldSpeed = 1; unitSpeedCfg = 1; }
+    }
+    function slowestSpeed(unitsPresent) {
+        // unitsPresent: array de chaves de unidade com contagem > 0 nessa full
+        let slowest = BASE_SPEED.axe;
+        unitsPresent.forEach(function (u) {
+            if (BASE_SPEED[u] && BASE_SPEED[u] > slowest) slowest = BASE_SPEED[u];
+        });
+        return slowest; // min/campo @ velocidade 1
+    }
+    function parseArrivalInput(str) {
+        const now = new Date();
+        const m = String(str).trim().match(/^(\d{1,2}):(\d{2})$/);
+        if (!m) return null;
+        const d = new Date(now);
+        d.setHours(parseInt(m[1], 10), parseInt(m[2], 10), 0, 0);
+        if (d.getTime() < now.getTime()) d.setDate(d.getDate() + 1);
+        return d;
+    }
+    function fmtTime(d) {
+        return d.getHours().toString().padStart(2, "0") + ":" + d.getMinutes().toString().padStart(2, "0") + ":" + d.getSeconds().toString().padStart(2, "0");
+    }
+    document.getElementById("jjopg-sync").onclick = async function () {
+        const status = document.getElementById("jjopg-sync-status");
+        const box = document.getElementById("jjopg-sync-results");
+        box.innerHTML = "";
+        if (!assignments.length) { status.textContent = "Gere a distribuição na Etapa 5 primeiro."; return; }
+
+        status.textContent = "Buscando configuração do mundo...";
+        await fetchWorldConfig();
+
+        const arrivalInput = document.getElementById("jjopg-arrival").value.trim();
+        let desiredArrival = arrivalInput ? parseArrivalInput(arrivalInput) : null;
+
+        // calcula tempo de viagem de cada full (assume composição mista axe+light+ram -> usa a mais lenta presente)
+        assignments.forEach(function (a) {
+            const d = dist(a.target, a.target); // placeholder, recalculado abaixo por full
+            a.fulls.forEach(function (f) {
+                const distFields = dist(a.target, f);
+                const unitsPresent = ["axe", "light", "ram"]; // full padrão: assume que pode ter aríete
+                const base = slowestSpeed(unitsPresent);
+                const minPerField = base / (worldSpeed * unitSpeedCfg);
+                const travelMin = distFields * minPerField;
+                f.travelMin = travelMin;
+            });
+        });
+
+        // se não foi definido horário de chegada, usa o full mais lento de todo o plano partindo agora
+        if (!desiredArrival) {
+            let maxTravel = 0;
+            assignments.forEach(function (a) { a.fulls.forEach(function (f) { if (f.travelMin > maxTravel) maxTravel = f.travelMin; }); });
+            desiredArrival = new Date(Date.now() + maxTravel * 60000);
+        }
+
+        let html = "";
+        assignments.forEach(function (a) {
+            html += '<div style="border:1px solid rgba(216,170,69,.2);border-radius:8px;padding:6px 8px;margin-bottom:6px;">';
+            html += '<div style="color:' + gold + ';font-weight:700;margin-bottom:4px;">🎯 Alvo: ' + a.target.coord + ' — chegada: ' + fmtTime(desiredArrival) + '</div>';
+            a.fulls.forEach(function (f) {
+                const departure = new Date(desiredArrival.getTime() - f.travelMin * 60000);
+                f.departure = departure;
+                f.arrival = desiredArrival;
+                const late = departure.getTime() < Date.now();
+                html += '<div style="padding:2px 0;color:#ccc;">' + (f.role === "NT (nobre)" ? "👑 " : "⚔️ ") + f.coord + ' - ' + f.player +
+                    ' <span style="color:' + (late ? "#e77" : "#8c8") + ';">Enviar: ' + fmtTime(departure) + (late ? " (⚠️ já passou!)" : "") + '</span></div>';
+            });
+            html += '</div>';
+        });
+        box.innerHTML = html;
+        status.textContent = "Sincronização calculada (vel. mundo x" + worldSpeed + ", vel. unidades x" + unitSpeedCfg + "). Valores aproximados — confirme no jogo antes de enviar.";
+    };
+
+    // ================= SEÇÃO 7: GERADOR DE MP =================
+    document.getElementById("jjopg-genmp").onclick = function () {
+        const status = document.getElementById("jjopg-mp-status");
+        const box = document.getElementById("jjopg-mp-results");
+        box.innerHTML = "";
+        if (!assignments.length) { status.textContent = "Gere a distribuição (Etapa 5) e a sincronização (Etapa 6) primeiro."; return; }
+
+        let html = "";
+        assignments.forEach(function (a) {
+            a.fulls.forEach(function (f) {
+                const isNT = f.role === "NT (nobre)";
+                const dep = f.departure ? fmtTime(f.departure) : "(calcule a Etapa 6 primeiro)";
+                const arr = f.arrival ? fmtTime(f.arrival) : "(calcule a Etapa 6 primeiro)";
+                const text = (isNT
+                    ? "⚔️ ORDEM DE ATAQUE — NOBRE\n\nAldeia: " + f.coord + "\nAlvo: " + a.target.coord + "\n\n🕐 Enviar às: " + dep + "\n🎯 Chegada prevista: " + arr + "\n\nEnvie o NOBRE dessa aldeia para o alvo acima, seguindo exatamente o horário indicado. Confirme quando enviar!"
+                    : "⚔️ ORDEM DE ATAQUE — FULL DE APOIO\n\nAldeia: " + f.coord + "\nAlvo: " + a.target.coord + "\n\n🕐 Enviar às: " + dep + "\n🎯 Chegada prevista: " + arr + "\n\nEnvie TODAS as tropas ofensivas dessa aldeia para o alvo acima, seguindo exatamente o horário indicado. Confirme quando enviar!"
+                );
+                html += '<div style="border:1px solid rgba(216,170,69,.2);border-radius:8px;padding:6px 8px;margin-bottom:6px;">';
+                html += '<div style="color:' + gold + ';font-weight:700;margin-bottom:4px;">' + (isNT ? "👑 " : "⚔️ ") + f.player + ' (' + f.coord + ')</div>';
+                html += '<button class="jjopg-mp-copy" data-text="' + encodeURIComponent(text) + '" style="width:100%;padding:6px;background:#222;color:' + gold + ';font-weight:700;border:1px solid ' + gold + ';border-radius:6px;cursor:pointer;">📋 COPIAR MENSAGEM</button>';
+                html += '</div>';
+            });
+        });
+        box.innerHTML = html;
+        status.textContent = "Mensagens geradas. Copie e cole na MP de cada jogador.";
+        box.querySelectorAll(".jjopg-mp-copy").forEach(function (btn) {
+            btn.onclick = function () { copyText(this, decodeURIComponent(this.getAttribute("data-text"))); };
+        });
+    };
+
+    // ================= SEÇÃO 8: VISUALIZAR NO MAPA REAL =================
+    document.getElementById("jjopg-showmap").onclick = function () {
+        const status = document.getElementById("jjopg-map-status");
+        if (typeof TWMap === "undefined" || !TWMap.villages) {
+            status.textContent = "Abra o mapa do jogo (screen=map) para visualizar.";
+            return;
+        }
+        if (!assignments.length) { status.textContent = "Gere a distribuição na Etapa 5 primeiro."; return; }
+
+        let marked = 0;
+        assignments.forEach(function (a) {
+            const tv = TWMap.villages[a.target.x * 1000 + a.target.y];
+            if (tv) {
+                const el = document.getElementById("map_village_" + tv.id);
+                if (el) { el.style.filter = "brightness(160%) sepia(1) saturate(6) hue-rotate(-50deg)"; marked++; }
+            }
+            a.fulls.forEach(function (f) {
+                const fv = TWMap.villages[f.x * 1000 + f.y];
+                if (fv) {
+                    const el = document.getElementById("map_village_" + fv.id);
+                    if (el) { el.style.filter = "brightness(160%) sepia(1) saturate(6) hue-rotate(70deg)"; marked++; }
+                }
+            });
+        });
+        status.textContent = marked + " aldeia(s) destacada(s) (verde = origem, vermelho = alvo). Só as já carregadas na tela.";
+    };
+    document.getElementById("jjopg-clearmap").onclick = function () {
+        document.querySelectorAll('[id^="map_village_"]').forEach(function (el) { el.style.filter = ""; });
+        document.getElementById("jjopg-map-status").textContent = "Destaques removidos.";
+    };
+
+    // ================= SEÇÃO 9: EXPORTAR PLANO =================
+    function buildExportText() {
+        if (!assignments.length) return null;
+        let lines = ["ORIGEM\tALVO\tPAPEL\tJOGADOR\tENVIO\tCHEGADA"];
+        assignments.forEach(function (a) {
+            a.fulls.forEach(function (f) {
+                lines.push([
+                    f.coord, a.target.coord, f.role, f.player,
+                    f.departure ? fmtTime(f.departure) : "-",
+                    f.arrival ? fmtTime(f.arrival) : "-"
+                ].join("\t"));
+            });
+        });
+        return lines.join("\n");
+    }
+    document.getElementById("jjopg-export-copy").onclick = function () {
+        const status = document.getElementById("jjopg-export-status");
+        const text = buildExportText();
+        if (!text) { status.textContent = "Nada pra exportar ainda — gere a distribuição primeiro."; return; }
+        copyText(this, text);
+        status.textContent = "Tabela copiada.";
+    };
+    document.getElementById("jjopg-export-file").onclick = function () {
+        const status = document.getElementById("jjopg-export-status");
+        const text = buildExportText();
+        if (!text) { status.textContent = "Nada pra exportar ainda — gere a distribuição primeiro."; return; }
+        const blob = new Blob([text], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "plano_op_" + Date.now() + ".txt";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        status.textContent = "Arquivo baixado.";
+    };
 
 })();
