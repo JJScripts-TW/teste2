@@ -667,27 +667,33 @@ javascript:(function () {
         return { assignmentsList: assignmentsList, skippedCount: targetsParsed.length - activeTargets.length };
     }
 
-    // Agrupa comandos repetidos do MESMO jogador pro MESMO alvo numa linha só (ex: "Ana → 500|500 x3"),
-    // quebrando em várias linhas quando passar de 5 (ex: 12 vira "x5", "x5", "x2") — pra sobrar menos linha pra separar.
+    // Agrupa por ALDEIA (uma linha só por alvo, não uma por remetente) — quando 2 jogadores diferentes
+    // mandam apoio pra mesma aldeia (ex: o próprio dono do alvo + o Albino58), sai como
+    // "494|620 → Nome1, Nome2" numa linha só, em vez de duas linhas separadas. Se o MESMO jogador manda
+    // mais de uma vez pra mesma aldeia, aparece "Nome x3" dentro da linha (capado em 5 por bloco: x5, x5, x2...).
     function groupCapped(entries, capPerLine, ownerByCoord) {
-        const counts = {};
-        const order = [];
+        const targetOrder = [];
+        const byTarget = {};
         entries.forEach(function (e) {
-            const key = e.player + "||" + e.target;
-            if (!(key in counts)) { counts[key] = 0; order.push(key); }
-            counts[key]++;
+            if (!(e.target in byTarget)) { byTarget[e.target] = { counts: {}, order: [] }; targetOrder.push(e.target); }
+            const bucket = byTarget[e.target];
+            if (!(e.player in bucket.counts)) { bucket.counts[e.player] = 0; bucket.order.push(e.player); }
+            bucket.counts[e.player]++;
         });
         const lines = [];
-        order.forEach(function (key) {
-            const parts = key.split("||");
-            const player = parts[0], target = parts[1];
+        targetOrder.forEach(function (target) {
+            const bucket = byTarget[target];
             const owner = ownerByCoord[target];
-            let remaining = counts[key];
-            while (remaining > 0) {
-                const take = Math.min(capPerLine, remaining);
-                lines.push(player + " → " + target + (owner ? " (" + owner + ")" : "") + (take > 1 ? " x" + take : ""));
-                remaining -= take;
-            }
+            const parts = [];
+            bucket.order.forEach(function (player) {
+                let remaining = bucket.counts[player];
+                while (remaining > 0) {
+                    const take = Math.min(capPerLine, remaining);
+                    parts.push(player + (take > 1 ? " x" + take : ""));
+                    remaining -= take;
+                }
+            });
+            lines.push(target + (owner ? " (" + owner + ")" : "") + " → " + parts.join(", "));
         });
         return lines;
     }
