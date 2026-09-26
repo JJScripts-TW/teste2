@@ -150,6 +150,11 @@ javascript:(function () {
                     <button id="jjopg-genmp" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">✉️ GERAR MENSAGEM DA OPERAÇÃO</button>
                     <div id="jjopg-mp-status" style="color:#999;margin-bottom:6px;line-height:15px;"></div>
                     <div id="jjopg-mp-results"></div>
+
+                    <div style="border-top:1px solid rgba(216,170,69,.3);margin:12px 0 10px;padding-top:10px;color:#999;">Mesmo conteúdo das caixas acima, mas separado num aviso individual pra cada jogador — só com o que ELE precisa mandar.</div>
+                    <button id="jjopg-genmp-ind" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">✉️✉️ GERAR MENSAGENS INDIVIDUAIS (por jogador)</button>
+                    <div id="jjopg-mp-ind-status" style="color:#999;margin-bottom:6px;line-height:15px;"></div>
+                    <div id="jjopg-mp-ind-results"></div>
                 </div>
             </details>
 
@@ -896,6 +901,123 @@ javascript:(function () {
         status.textContent = "Mensagem gerada a partir do conteúdo atual das 4 caixas acima.";
 
         document.getElementById("jjopg-mp-copy").onclick = function () { copyText(this, text); };
+    };
+
+    // ---------------- Mensagens INDIVIDUAIS (uma por jogador, só com o que ele precisa mandar) ----------------
+    // Reconhece as linhas nos formatos que as próprias caixas usam:
+    //   Fulls/Semis: "Nome → coord"  ou  "Nome → coord (Dono)"  ou  "Nome → coord x3"
+    //   NT/Fakes:    "coord (Nome) → coord"  ou  "coord (Nome) → coord (nota)"
+    function parseArrowLines(text) {
+        const out = [];
+        text.split("\n").forEach(function (raw) {
+            const line = raw.trim();
+            if (!line) return;
+            const m = line.match(/^(.+?)\s*→\s*(\d{1,3}\|\d{1,3})\s*(?:\(([^)]*)\))?\s*(?:x(\d+))?\s*$/i);
+            if (m) out.push({ player: m[1].trim(), coord: m[2], note: m[3] ? m[3].trim() : "", count: m[4] ? parseInt(m[4], 10) : 1 });
+        });
+        return out;
+    }
+    function parseSourceParenLines(text) {
+        const out = [];
+        text.split("\n").forEach(function (raw) {
+            const line = raw.trim();
+            if (!line) return;
+            const m = line.match(/^(\d{1,3}\|\d{1,3})\s*\(([^)]*)\)\s*→\s*(\d{1,3}\|\d{1,3})\s*(?:\(([^)]*)\))?\s*$/i);
+            if (m) out.push({ player: m[2].trim(), source: m[1], coord: m[3], note: m[4] ? m[4].trim() : "" });
+        });
+        return out;
+    }
+    // bônus é texto livre — só consegue atribuir a um jogador quando a linha COMEÇA com o nome dele;
+    // dessa linha extrai só as coordenadas (ignora "Nome - Bonus:" etc), uma por linha na mensagem final.
+    function assignBonusLines(text, players) {
+        const byPlayer = {};
+        const unassigned = [];
+        text.split("\n").forEach(function (raw) {
+            const line = raw.trim();
+            if (!line) return;
+            const hit = players.find(function (p) { return line.toLowerCase().indexOf(p.toLowerCase()) === 0; });
+            const coords = extractPlainCoords(line).map(function (c) { return c.coord; });
+            if (hit) { Array.prototype.push.apply(byPlayer[hit] = byPlayer[hit] || [], coords.length ? coords : [line]); }
+            else unassigned.push(line);
+        });
+        return { byPlayer: byPlayer, unassigned: unassigned };
+    }
+
+    // Mensagem individual: mesma estrutura de seções/spoiler do modelo padrão, mas só com as
+    // coordenadas de UM jogador em cada campo (sem repetir o nome, já que a mensagem é dele).
+    function buildIndividualMessage(player, dateStr, timeStr, data) {
+        let msg = "⚔️ OPERAÇÃO — " + (dateStr || "(defina a data)") + " — " + player + " ⚔️\n\n" +
+            "🕛 Horário de impacto: " + (timeStr || "(defina o horário)") + "\n";
+        if (data.nt.length) {
+            msg += "\n🎯 SEU(S) NT\n\n[spoiler]\n" + data.nt.map(function (e) { return e.source + " → " + e.coord; }).join("\n") + "\n[/spoiler]\n";
+        }
+        if (data.fakes.length) {
+            msg += "\n🎭 SEUS FAKES COORDENADOS\n\n[spoiler]\n" + data.fakes.map(function (e) { return e.source + " → " + e.coord; }).join("\n") + "\n[/spoiler]\n";
+        }
+        if (data.fulls.length || data.semis.length) {
+            msg += "\n⚔️ SEUS FULLS E SEMI-FULLS\n\n[spoiler]\n";
+            if (data.fulls.length) msg += "FULLS\n\n" + data.fulls.map(function (e) { return e.coord + (e.count > 1 ? " x" + e.count : ""); }).join("\n") + "\n";
+            if (data.fulls.length && data.semis.length) msg += "\n";
+            if (data.semis.length) msg += "SEMI-FULLS\n\n" + data.semis.map(function (e) { return e.coord + (e.count > 1 ? " x" + e.count : ""); }).join("\n") + "\n";
+            msg += "[/spoiler]\n";
+        }
+        if (data.bonus.length) {
+            msg += "\n🎁 SEUS BÔNUS\n\n[spoiler]\n" + data.bonus.join("\n") + "\n[/spoiler]\n";
+        }
+        msg += "\n📌 Você é responsável pela sua própria noblagem: encaixe certinho os apoios colados e envie com anti-snipe.\n" +
+            "Se não tiver tropa suficiente pro apoio, fale com algum amigo da tribo pra coordenar com você.\n\n" +
+            "❗ Qualquer dúvida, NÃO me procure. Boa OP!";
+        return msg;
+    }
+
+    function messageBlockHtml(title, text) {
+        let h = '<div style="margin-bottom:10px;">';
+        h += '<div style="color:' + gold + ';font-weight:700;margin-bottom:4px;">👤 ' + title + '</div>';
+        h += '<textarea readonly style="width:100%;box-sizing:border-box;height:160px;padding:6px;margin-bottom:4px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.3);border-radius:8px;font-family:monospace;font-size:10px;white-space:pre-wrap;">' + text + '</textarea>';
+        h += '<button class="jjopg-field-copy" style="width:100%;padding:6px;background:#222;color:' + gold + ';font-weight:700;border:1px solid ' + gold + ';border-radius:6px;cursor:pointer;">📋 COPIAR MENSAGEM DE ' + title.toUpperCase() + '</button>';
+        h += '</div>';
+        return h;
+    }
+
+    document.getElementById("jjopg-genmp-ind").onclick = function () {
+        const status = document.getElementById("jjopg-mp-ind-status");
+        const box = document.getElementById("jjopg-mp-ind-results");
+        box.innerHTML = "";
+
+        const dateStr = document.getElementById("jjopg-op-date").value.trim();
+        const timeStr = document.getElementById("jjopg-op-time").value.trim();
+
+        const ntEntries = parseSourceParenLines(document.getElementById("jjopg-mp-nt").value);
+        const fakeEntries = parseSourceParenLines(document.getElementById("jjopg-mp-fakes").value);
+        const fullEntries = parseArrowLines(document.getElementById("jjopg-mp-fulls").value);
+        const semiEntries = parseArrowLines(document.getElementById("jjopg-mp-semis").value);
+
+        const playersSet = {};
+        [ntEntries, fakeEntries, fullEntries, semiEntries].forEach(function (list) {
+            list.forEach(function (e) { playersSet[e.player] = true; });
+        });
+        const players = Object.keys(playersSet);
+        if (!players.length) { status.textContent = "Não encontrei nenhuma linha reconhecível nas caixas de NT/Fakes/Fulls/Semis acima."; return; }
+
+        const bonusResult = assignBonusLines(document.getElementById("jjopg-mp-bonus").value, players);
+
+        let html = "";
+        players.sort().forEach(function (p) {
+            const data = {
+                nt: ntEntries.filter(function (e) { return e.player === p; }),
+                fakes: fakeEntries.filter(function (e) { return e.player === p; }),
+                fulls: fullEntries.filter(function (e) { return e.player === p; }),
+                semis: semiEntries.filter(function (e) { return e.player === p; }),
+                bonus: bonusResult.byPlayer[p] || []
+            };
+            html += messageBlockHtml(p, buildIndividualMessage(p, dateStr, timeStr, data));
+        });
+        if (bonusResult.unassigned.length) {
+            html += fieldHtml("🎁 Bônus não identificados (não bateram com nenhum nome de jogador)", bonusResult.unassigned, "#e0b84a");
+        }
+        box.innerHTML = html;
+        wireFieldCopyButtons(box);
+        status.textContent = players.length + " mensagem(ns) individual(is) gerada(s).";
     };
 
     // ================= SEÇÃO 8: VISUALIZAR NO MAPA REAL =================
