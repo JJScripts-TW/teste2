@@ -926,26 +926,54 @@ javascript:(function () {
     // As 4 caixinhas usam o MESMO formato da Etapa 2/3 ("Nome:N - coord coord coord", com bonus etc) —
     // por isso reaproveita parseNamedList pra ligar as 4 caixas por nick.
 
+    // Junta coordenadas repetidas numa linha só com "xN" (ex: 3x "497|629" vira "497|629 x3"),
+    // capado em 5 por linha (6+ vira "x5" + "x1" etc) — mesma ideia do groupCapped, mas só por coordenada
+    // (aqui já é tudo de UM jogador só, não precisa separar por remetente).
+    function groupCoordCounts(coords, capPerLine) {
+        const counts = {};
+        const order = [];
+        coords.forEach(function (c) {
+            if (!(c in counts)) { counts[c] = 0; order.push(c); }
+            counts[c]++;
+        });
+        const lines = [];
+        order.forEach(function (c) {
+            let remaining = counts[c];
+            while (remaining > 0) {
+                const take = Math.min(capPerLine, remaining);
+                lines.push(c + (take > 1 ? " x" + take : ""));
+                remaining -= take;
+            }
+        });
+        return lines;
+    }
+
     // Mensagem individual: mesma estrutura de seções/spoiler do modelo padrão, mas só com as
     // coordenadas de UM jogador em cada campo (sem repetir o nome, já que a mensagem é dele).
     function buildIndividualMessage(player, dateStr, timeStr, data) {
+        const ntLines = groupCoordCounts(data.nt, 5);
+        const fakeLines = groupCoordCounts(data.fakes, 5);
+        const fullLines = groupCoordCounts(data.fulls, 5);
+        const semiLines = groupCoordCounts(data.semis, 5);
+        const bonusLines = groupCoordCounts(data.bonus, 5);
+
         let msg = "⚔️ OPERAÇÃO — " + (dateStr || "(defina a data)") + " — " + player + " ⚔️\n\n" +
             "🕛 Horário de impacto: " + (timeStr || "(defina o horário)") + "\n";
-        if (data.nt.length) {
-            msg += "\n🎯 SEU(S) NT\n\n[spoiler]\n" + data.nt.join("\n") + "\n[/spoiler]\n";
+        if (ntLines.length) {
+            msg += "\n🎯 SEU(S) NT\n\n[spoiler]\n" + ntLines.join("\n") + "\n[/spoiler]\n";
         }
-        if (data.fakes.length) {
-            msg += "\n🎭 SEUS FAKES COORDENADOS\n\n[spoiler]\n" + data.fakes.join("\n") + "\n[/spoiler]\n";
+        if (fakeLines.length) {
+            msg += "\n🎭 SEUS FAKES COORDENADOS\n\n[spoiler]\n" + fakeLines.join("\n") + "\n[/spoiler]\n";
         }
-        if (data.fulls.length || data.semis.length) {
+        if (fullLines.length || semiLines.length) {
             msg += "\n⚔️ SEUS FULLS E SEMI-FULLS\n\n[spoiler]\n";
-            if (data.fulls.length) msg += "FULLS\n\n" + data.fulls.join("\n") + "\n";
-            if (data.fulls.length && data.semis.length) msg += "\n";
-            if (data.semis.length) msg += "SEMI-FULLS\n\n" + data.semis.join("\n") + "\n";
+            if (fullLines.length) msg += "FULLS\n\n" + fullLines.join("\n") + "\n";
+            if (fullLines.length && semiLines.length) msg += "\n";
+            if (semiLines.length) msg += "SEMI-FULLS\n\n" + semiLines.join("\n") + "\n";
             msg += "[/spoiler]\n";
         }
-        if (data.bonus.length) {
-            msg += "\n🎁 SEUS BÔNUS\n\n[spoiler]\n" + data.bonus.join("\n") + "\n[/spoiler]\n";
+        if (bonusLines.length) {
+            msg += "\n🎁 SEUS BÔNUS\n\n[spoiler]\n" + bonusLines.join("\n") + "\n[/spoiler]\n";
         }
         msg += "\n📌 Você é responsável pela sua própria noblagem: encaixe certinho os apoios colados e envie com anti-snipe.\n" +
             "Se não tiver tropa suficiente pro apoio, fale com algum amigo da tribo pra coordenar com você.\n\n" +
