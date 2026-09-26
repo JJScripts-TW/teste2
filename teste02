@@ -104,22 +104,19 @@ javascript:(function () {
             </details>
 
             <details id="sec5b" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
-                <summary style="cursor:pointer;color:${gold};font-weight:700;">3️⃣.2 Distribuir outra leva de alvos (rodada 2 — semi-full, fakes, etc.)</summary>
+                <summary style="cursor:pointer;color:${gold};font-weight:700;">3️⃣.2 Distribuir proporcionalmente (rodada 2 — o que sobrou da tribo)</summary>
                 <div style="margin-top:8px;">
-                    <div style="color:#999;margin-bottom:6px;">Caixinha própria e independente da de cima. Cole aqui a pool que quiser usar (pode ser a sobra da rodada 1, copiada manualmente, ou qualquer outra) — não puxa nada automático.</div>
+                    <div style="color:#999;margin-bottom:6px;">Caixinha própria e independente da de cima. Pega TODO o pool disponível e espalha igualzinho entre as coordenadas — 1 apoio pra cada, se sobrar dá 2 pra cada, e assim por diante. Não puxa nada automático.</div>
 
-                    <label style="display:block;color:#bbb;margin-bottom:3px;">🌓 Alvos desta rodada</label>
-                    <div style="color:#888;margin-bottom:3px;">Mesmo formato: <code>Nome:N coord coord coord</code>, ou só coordenadas soltas (sem nome) se preferir.</div>
-                    <textarea id="jjopg-dist-targets-box-2" placeholder="500|500 501|502 502|503&#10;Maria:2 510|498" style="width:100%;box-sizing:border-box;height:100px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+                    <label style="display:block;color:#bbb;margin-bottom:3px;">📍 Coordenadas (só as coordenadas, sem nome nem número)</label>
+                    <div style="color:#888;margin-bottom:3px;">Cole só as coordenadas soltas, do jeito que estiverem (espaço, quebra de linha, tabela, tanto faz).</div>
+                    <textarea id="jjopg-dist-targets-box-2" placeholder="494|620 492|620 489|620&#10;487|621 488|619 487|618" style="width:100%;box-sizing:border-box;height:100px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
 
                     <label style="display:block;color:#bbb;margin-bottom:3px;">👥 Pool disponível para esta rodada (Nome F S)</label>
-                    <div style="color:#888;margin-bottom:3px;">Cole aqui o que tiver disponível — pode ser a sobra da rodada 1 (copie do campo "♻️ Sobra" ali de cima) ou qualquer outra lista <code>Nome F S</code>.</div>
-                    <textarea id="jjopg-dist-pool-box-2" placeholder="Arken 105 F 11 S&#10;Cinder7 24 F 20 S" style="width:100%;box-sizing:border-box;height:100px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+                    <div style="color:#888;margin-bottom:3px;">Cole aqui o que sobrou/tiver disponível — pode ser a sobra da rodada 1 (copie do campo "♻️ Sobra" ali de cima) ou qualquer outra lista <code>Nome F S</code>. TODO o pool é usado, dividido igualmente entre as coordenadas.</div>
+                    <textarea id="jjopg-dist-pool-box-2" placeholder="Arken 0 F 10 S&#10;Minatto 0 F 14 S" style="width:100%;box-sizing:border-box;height:100px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
 
-                    <label style="display:block;color:#bbb;margin-bottom:3px;">Mín. apoios por alvo desta rodada (padrão, quando não tiver ":N")</label>
-                    <input id="jjopg-minfulls-2" type="number" value="1" min="1" style="width:100%;box-sizing:border-box;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;">
-                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:10px;color:#bbb;"><input id="jjopg-skip-bonus-2" type="checkbox"> Ocultar alvos 🎁 bônus desta rodada</label>
-                    <button id="jjopg-distribute-2" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🌓 GERAR DISTRIBUIÇÃO (RODADA 2)</button>
+                    <button id="jjopg-distribute-2" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🌓 DISTRIBUIR PROPORCIONALMENTE (RODADA 2)</button>
                     <div id="jjopg-dist-status-2" style="color:#999;margin-bottom:6px;line-height:15px;"></div>
                     <div id="jjopg-dist-results-2"></div>
                 </div>
@@ -776,37 +773,75 @@ javascript:(function () {
         wireFieldCopyButtons(box);
     };
 
-    // ---------------- Rodada 2 (caixinha própria e independente, com sua própria pool manual) ----------------
+    // extrai só as coordenadas de um texto (ignora nome/número), sem duplicar a mesma coordenada 2x
+    function extractPlainCoords(text) {
+        const re = /\d{1,3}\|\d{1,3}/g;
+        const seen = {};
+        const out = [];
+        let m;
+        while ((m = re.exec(text)) !== null) {
+            if (seen[m[0]]) continue;
+            seen[m[0]] = true;
+            const pc = parseCoord(m[0]);
+            if (pc) out.push({ coord: pc.coord, x: pc.x, y: pc.y });
+        }
+        return out;
+    }
+
+    // espalha TODO o pool disponível igualmente entre as coordenadas (round-robin): 1 apoio pra cada
+    // primeiro, se sobrar dá o 2º pra cada, etc. Fulls são distribuídos antes dos semis.
+    function proportionalAllocate(targetCoords, remaining, playerOrder) {
+        const queue = [];
+        playerOrder.forEach(function (p) {
+            for (let i = 0; i < remaining[p].full; i++) queue.push({ player: p, type: "FULL", role: "Full apoio" });
+        });
+        playerOrder.forEach(function (p) {
+            for (let i = 0; i < remaining[p].semi; i++) queue.push({ player: p, type: "SEMI", role: "Semi apoio" });
+        });
+        const n = targetCoords.length;
+        const perTarget = targetCoords.map(function () { return []; });
+        queue.forEach(function (u, i) {
+            perTarget[i % n].push(u);
+            if (u.type === "FULL") remaining[u.player].full--; else remaining[u.player].semi--;
+        });
+        return targetCoords.map(function (c, idx) {
+            return { target: { coord: c.coord, x: c.x, y: c.y, owner: null, bonus: false }, fulls: perTarget[idx], selfSufficient: false };
+        });
+    }
+
+    // ---------------- Rodada 2 (caixinha própria e independente — distribuição PROPORCIONAL) ----------------
     document.getElementById("jjopg-distribute-2").onclick = function () {
         const status = document.getElementById("jjopg-dist-status-2");
         const box = document.getElementById("jjopg-dist-results-2");
         box.innerHTML = "";
-        const minFulls2 = Math.max(1, parseInt(document.getElementById("jjopg-minfulls-2").value, 10) || 1);
-        const skipBonus2 = document.getElementById("jjopg-skip-bonus-2").checked;
 
-        const targetsParsed2 = parseNamedList(document.getElementById("jjopg-dist-targets-box-2").value);
-        if (!targetsParsed2.length) { status.textContent = "Preencha a caixinha de alvos desta rodada (Nome:N coord ... ou só coordenadas soltas)."; return; }
+        const targetCoords2 = extractPlainCoords(document.getElementById("jjopg-dist-targets-box-2").value);
+        if (!targetCoords2.length) { status.textContent = "Preencha a caixinha de coordenadas desta rodada."; return; }
 
         const quota2 = parsePlayerQuota(document.getElementById("jjopg-dist-pool-box-2").value, knownPlayerNames());
-        if (!quota2.length) { status.textContent = "Preencha a caixinha de pool desta rodada (formato Nome F S — ex: Arken 105 F 11 S)."; return; }
+        if (!quota2.length) { status.textContent = "Preencha a caixinha de pool desta rodada (formato Nome F S — ex: Arken 0 F 10 S)."; return; }
 
         const remaining2 = {};
         const playerOrder2 = [];
         quota2.forEach(function (q) {
-            remaining2[q.name] = { full: q.full, semi: q.semi };
-            playerOrder2.push(q.name);
+            remaining2[q.player] = { full: q.fullQuota, semi: q.semiQuota };
+            playerOrder2.push(q.player);
         });
 
-        const result2 = allocateTargets(targetsParsed2, remaining2, playerOrder2, minFulls2, skipBonus2);
-        if (!result2.assignmentsList.length) { status.textContent = "Todos os alvos são bônus e estão ocultos — desmarque a opção ou adicione alvos normais."; return; }
+        const totalFull2 = playerOrder2.reduce(function (s, p) { return s + remaining2[p].full; }, 0);
+        const totalSemi2 = playerOrder2.reduce(function (s, p) { return s + remaining2[p].semi; }, 0);
+        if (totalFull2 + totalSemi2 <= 0) { status.textContent = "A pool desta rodada está zerada (0 F, 0 S) — não há nada pra distribuir."; return; }
 
-        const incompletos2 = result2.assignmentsList.filter(function (a) { return !a.selfSufficient && a.fulls.length < a.needWanted; }).length;
-        status.textContent = "Rodada 2: distribuição gerada para " + result2.assignmentsList.length + " alvo(s)." +
-            (incompletos2 ? " (" + incompletos2 + " sem apoio suficiente na pool)" : "") +
-            (result2.skippedCount ? " (" + result2.skippedCount + " alvo(s) bônus ocultado(s))" : "");
+        const assignments2 = proportionalAllocate(targetCoords2, remaining2, playerOrder2);
+        const semAssignments2 = assignments2.filter(function (a) { return a.fulls.length === 0; }).length;
+        const base = Math.floor((totalFull2 + totalSemi2) / targetCoords2.length);
+
+        status.textContent = "Rodada 2: " + (totalFull2 + totalSemi2) + " apoio(s) (" + totalFull2 + " full, " + totalSemi2 + " semi) espalhados entre " + targetCoords2.length + " coordenada(s) — " +
+            (base >= 1 ? base + " apoio(s) por coordenada (alguns ganham +1 pra fechar a conta)" : "não dá 1 apoio pra cada, algumas coordenadas ficam sem") +
+            (semAssignments2 ? " (" + semAssignments2 + " coordenada(s) sem nenhum apoio)" : "") + ".";
 
         const leftoverItems2 = leftoverItemsFrom(remaining2);
-        let html2 = buildAssignmentFieldsHtml(result2.assignmentsList);
+        let html2 = buildAssignmentFieldsHtml(assignments2);
         html2 += fieldHtml("♻️ Sobra desta rodada", leftoverItems2, "#8c8");
         box.innerHTML = html2;
         wireFieldCopyButtons(box);
