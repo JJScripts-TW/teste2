@@ -82,32 +82,20 @@ javascript:(function () {
             </details>
 
             <details id="sec5" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
-                <summary style="cursor:pointer;color:${gold};font-weight:700;">3️⃣ Distribuir fulls por proximidade</summary>
+                <summary style="cursor:pointer;color:${gold};font-weight:700;">3️⃣ Organizar atribuições (sem cálculo automático)</summary>
                 <div style="margin-top:8px;">
-                    <div style="color:#999;margin-bottom:6px;">Seção independente — edite as duas caixas abaixo livremente (ex: depois de ajustar no OneNote) e clique em "GERAR DISTRIBUIÇÃO". Use "↻" só como ponto de partida a partir das Etapas 1/2, se quiser.</div>
+                    <div style="color:#999;margin-bottom:6px;">Sem proximidade automática — você já decide manualmente quem apoia quem (no seu OneNote, por exemplo) e só cola aqui pra organizar em 4 campos separados e copiáveis.</div>
 
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
-                        <label style="color:#bbb;">🎯 Coordenadas alvo que precisam de distribuição</label>
-                        <span id="jjopg-dist-fill-targets" style="cursor:pointer;color:${gold};font-size:10px;text-decoration:underline;">↻ preencher com alvos atuais</span>
-                    </div>
-                    <div style="color:#888;margin-bottom:3px;">Formato: <code>coord - nome[:necessário][*]</code>. ":N" define quantos fulls de apoio; "*" marca como bônus. Ex: <code>500|500 - João:3</code> ou <code>510|498 - Maria*</code></div>
-                    <textarea id="jjopg-dist-targets-box" placeholder="500|500 - João:3&#10;501|502 - João:3&#10;510|498 - Maria*" style="width:100%;box-sizing:border-box;height:90px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+                    <label style="display:block;color:#bbb;margin-bottom:3px;">🗂️ Atribuições decididas</label>
+                    <div style="color:#888;margin-bottom:3px;">Uma linha por apoio: <code>coord (jogador) → alvo NT/FULL/SEMI</code>. Alvo bônus (sem apoio): <code>coord - jogador BONUS</code></div>
+                    <textarea id="jjopg-dist-assign-box" placeholder="500|501 (Pedro) → 480|480 NT&#10;502|503 (Pedro) → 480|480 FULL&#10;498|500 (Maria) → 480|480 SEMI&#10;486|636 - Arken BONUS" style="width:100%;box-sizing:border-box;height:130px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
 
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
-                        <label style="color:#bbb;">🛡️ Fulls e semi-fulls disponíveis (pool)</label>
-                        <span id="jjopg-dist-fill-pool" style="cursor:pointer;color:${gold};font-size:10px;text-decoration:underline;">↻ preencher com fulls/semis atuais</span>
-                    </div>
-                    <div style="color:#888;margin-bottom:3px;">Mesmo formato editável da Etapa 1: <code>coord - jogador - FULL/SEMI (M:x CL:y AR:z)</code></div>
-                    <textarea id="jjopg-dist-pool-box" placeholder="500|501 - Pedro - FULL (M:8000 CL:4000)" style="width:100%;box-sizing:border-box;height:90px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+                    <label style="display:block;color:#bbb;margin-bottom:3px;">📋 Cota de F/S por jogador (opcional — só avisa, não bloqueia)</label>
+                    <div style="color:#888;margin-bottom:3px;">Cola direto do jogo: <code>Nome &lt;F&gt; F &lt;S&gt; S</code> (ex: <code>Arken 105 F 11 S</code>). Se preenchido, avisa se você atribuiu mais FULL/SEMI de algum jogador do que a cota dele.</div>
+                    <textarea id="jjopg-dist-quota-box" placeholder="Arken 105 F 11 S&#10;Boldin 29 F 3 S" style="width:100%;box-sizing:border-box;height:70px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
 
-                    <label style="display:block;color:#bbb;margin-bottom:3px;">📋 Cota de F/S por jogador (opcional)</label>
-                    <div style="color:#888;margin-bottom:3px;">Cola direto do jogo: <code>Nome&lt;F&gt; F &lt;S&gt; S</code> (ex: <code>Arken105 F 11 S</code> = Arken tem até 105 fulls e 11 semis). Se preenchido, a distribuição usa no máximo essa quantidade de FULL/SEMI de cada jogador, mesmo que a pool acima tenha mais coordenadas dele. Deixe em branco pra não limitar ninguém. Reconhece nomes já importados na Etapa 1 pra separar certo o nome do número.</div>
-                    <textarea id="jjopg-dist-quota-box" placeholder="Arken105 F 11 S&#10;Boldin29 F 3 S" style="width:100%;box-sizing:border-box;height:70px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
-
-                    <label style="display:block;color:#bbb;margin-bottom:3px;">Mín. fulls por alvo (padrão, quando o alvo não tiver ":N")</label>
-                    <input id="jjopg-minfulls" type="number" value="1" min="1" style="width:100%;box-sizing:border-box;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;">
-                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:10px;color:#bbb;"><input id="jjopg-skip-bonus" type="checkbox"> Pular alvos 🎁 bônus (mob) nesta distribuição</label>
-                    <button id="jjopg-distribute" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🎯 GERAR DISTRIBUIÇÃO</button>
+                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:10px;color:#bbb;"><input id="jjopg-skip-bonus" type="checkbox"> Ocultar alvos 🎁 bônus desta organização</label>
+                    <button id="jjopg-distribute" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🗂️ ORGANIZAR ATRIBUIÇÕES</button>
                     <div id="jjopg-dist-status" style="color:#999;margin-bottom:6px;line-height:15px;"></div>
                     <div id="jjopg-dist-results"></div>
                 </div>
@@ -116,17 +104,13 @@ javascript:(function () {
             <details id="sec7" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
                 <summary style="cursor:pointer;color:${gold};font-weight:700;">4️⃣ Gerador de Mensagem da Operação</summary>
                 <div style="margin-top:8px;">
-                    <div style="color:#999;margin-bottom:6px;">Seção independente — cole/edite as 4 caixas abaixo com o plano final (ex: mesclado no seu OneNote) e clique em "GERAR MENSAGEM". Modelo padrão fixo — só data e horário mudam. Use "↻" só como ponto de partida a partir da Etapa 3, se quiser.</div>
+                    <div style="color:#999;margin-bottom:6px;">Seção 100% manual — cole/edite as caixas abaixo com o plano final (ex: mesclado no seu OneNote) e clique em "GERAR MENSAGEM". Modelo padrão fixo — só data e horário mudam.</div>
                     <div style="display:flex;gap:6px;margin-bottom:8px;">
                         <div style="flex:1;"><label style="display:block;color:#bbb;margin-bottom:3px;">Data da OP</label>
                         <input id="jjopg-op-date" placeholder="29/09/2026" style="width:100%;box-sizing:border-box;padding:7px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;"></div>
                         <div style="flex:1;"><label style="display:block;color:#bbb;margin-bottom:3px;">Horário de impacto</label>
                         <input id="jjopg-op-time" placeholder="12:05:00.000" style="width:100%;box-sizing:border-box;padding:7px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;"></div>
                     </div>
-                    <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:6px;">
-                        <span id="jjopg-mp-fill" style="cursor:pointer;color:${gold};font-size:10px;text-decoration:underline;">↻ preencher NT/Fulls/Semis/Bônus com a distribuição atual (Etapa 3)</span>
-                    </div>
-
                     <label style="display:block;color:#bbb;margin-bottom:3px;">👑 Alvos NT (nobre) — nick e coordenadas</label>
                     <textarea id="jjopg-mp-nt" placeholder="500|500 (Pedro) → 480|480" style="width:100%;box-sizing:border-box;height:64px;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
 
@@ -262,33 +246,6 @@ javascript:(function () {
             });
         });
         return parsed;
-    }
-
-    // ---- helpers da Etapa 3 (caixas de texto independentes: alvos e pool) ----
-    function distTargetLineText(t) {
-        return t.coord + " - " + t.owner +
-            ((t.needFulls !== undefined && t.needFulls !== null) ? ":" + t.needFulls : "") +
-            (t.bonus ? "*" : "");
-    }
-    // formato: "coord - nome[:necessário][*]"
-    function parseDistTargetsText(raw) {
-        const lines = raw.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
-        const out = [];
-        lines.forEach(function (line) {
-            const bonus = /\*\s*$/.test(line);
-            const clean = line.replace(/\*\s*$/, "").trim();
-            const m = clean.match(/^(\d{1,3}\|\d{1,3})\s*-\s*(.+?)(?::(\d+))?$/);
-            if (!m) return;
-            const pc = parseCoord(m[1]);
-            if (!pc) return;
-            out.push({
-                coord: pc.coord, x: pc.x, y: pc.y,
-                owner: m[2].trim(),
-                needFulls: m[3] !== undefined ? parseInt(m[3], 10) : undefined,
-                bonus: bonus
-            });
-        });
-        return out;
     }
 
     // Cota de F/S por jogador: reconhece o formato colado do jogo "Nome<F> F <S> S" (sem espaço entre o
@@ -652,117 +609,121 @@ javascript:(function () {
         document.getElementById("jjopg-names-status").textContent = "Nomes removidos do mapa e da lista de alvos.";
     };
 
-    // ================= SEÇÃO 5: DISTRIBUIÇÃO POR PROXIMIDADE =================
-    // Seção independente: lê direto das duas caixas de texto (alvos e pool), não depende
-    // de já ter passado pela Etapa 1 ou pela Etapa 2 — só precisa das caixas preenchidas.
-    document.getElementById("jjopg-dist-fill-targets").onclick = function () {
-        document.getElementById("jjopg-dist-targets-box").value = targets.map(distTargetLineText).join("\n");
-    };
-    document.getElementById("jjopg-dist-fill-pool").onclick = function () {
-        document.getElementById("jjopg-dist-pool-box").value = ownFulls.map(fullLineText).join("\n");
-    };
-
-    let lastDistPool = []; // pool usado na última distribuição, pra saber FULL/SEMI ao montar os campos
+    // ================= SEÇÃO 5: ORGANIZAR ATRIBUIÇÕES (SEM CÁLCULO AUTOMÁTICO) =================
+    // Seção independente: sem proximidade/distância. Você já decide manualmente quem apoia quem
+    // (fora daqui, ex: no OneNote) e só cola o resultado pra separar em 4 campos copiáveis.
+    // Formatos aceitos, um por linha:
+    //   "coord (jogador) → alvo NT"    -> nobre saindo de "coord" pra atacar "alvo"
+    //   "coord (jogador) → alvo FULL"  -> apoio full saindo de "coord" pra "alvo"
+    //   "coord (jogador) → alvo SEMI"  -> apoio semi-full saindo de "coord" pra "alvo"
+    //   (aceita "->" ou "-" no lugar de "→")
+    //   "alvo - jogador BONUS"          -> alvo bônus, sem apoio nenhum
+    function parseManualAssignments(raw) {
+        const lines = raw.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+        const entries = [], bonusTargets = [];
+        lines.forEach(function (line) {
+            const mAssign = line.match(/^(\d{1,3}\|\d{1,3})\s*\(([^)]*)\)\s*(?:→|->|-)+\s*(\d{1,3}\|\d{1,3})\s*[\[:]?\s*(NT|FULL|SEMI)\]?\s*$/i);
+            if (mAssign) {
+                const supportPc = parseCoord(mAssign[1]);
+                const targetPc = parseCoord(mAssign[3]);
+                if (supportPc && targetPc) {
+                    entries.push({
+                        coord: supportPc.coord, x: supportPc.x, y: supportPc.y,
+                        player: mAssign[2].trim(),
+                        targetCoord: targetPc.coord, targetX: targetPc.x, targetY: targetPc.y,
+                        role: mAssign[4].toUpperCase()
+                    });
+                }
+                return;
+            }
+            const mBonus = line.match(/^(\d{1,3}\|\d{1,3})\s*-\s*(.+?)\s*bonus\s*$/i);
+            if (mBonus) {
+                const pc = parseCoord(mBonus[1]);
+                if (pc) bonusTargets.push({ coord: pc.coord, x: pc.x, y: pc.y, owner: mBonus[2].trim() });
+            }
+        });
+        return { entries: entries, bonusTargets: bonusTargets };
+    }
 
     document.getElementById("jjopg-distribute").onclick = function () {
         const status = document.getElementById("jjopg-dist-status");
         const box = document.getElementById("jjopg-dist-results");
         box.innerHTML = "";
-        const minFulls = Math.max(1, parseInt(document.getElementById("jjopg-minfulls").value, 10) || 1);
         const skipBonus = document.getElementById("jjopg-skip-bonus").checked;
 
-        const distTargets = parseDistTargetsText(document.getElementById("jjopg-dist-targets-box").value);
-        let distPool = parseFullsListText(document.getElementById("jjopg-dist-pool-box").value);
+        const parsed = parseManualAssignments(document.getElementById("jjopg-dist-assign-box").value);
+        if (!parsed.entries.length && !parsed.bonusTargets.length) {
+            status.textContent = "Cole ao menos uma atribuição (coord (jogador) → alvo NT/FULL/SEMI) ou alvo bônus (coord - jogador BONUS).";
+            return;
+        }
 
-        if (!distPool.length) { status.textContent = "Preencha a caixa de fulls/semi-fulls disponíveis (ou clique em ↻ preencher com fulls/semis atuais)."; return; }
-        if (!distTargets.length) { status.textContent = "Preencha a caixa de coordenadas alvo (ou clique em ↻ preencher com alvos atuais)."; return; }
+        // agrupa as atribuições por alvo, reconstruindo "assignments" (mesma estrutura usada nas Etapas 4/5/6)
+        const byTarget = {};
+        parsed.entries.forEach(function (e) {
+            if (!byTarget[e.targetCoord]) {
+                byTarget[e.targetCoord] = { target: { coord: e.targetCoord, x: e.targetX, y: e.targetY, owner: "", bonus: false }, fulls: [] };
+            }
+            byTarget[e.targetCoord].fulls.push({
+                coord: e.coord, x: e.x, y: e.y, player: e.player,
+                role: e.role === "NT" ? "NT (nobre)" : "Full apoio",
+                type: e.role // "NT" | "FULL" | "SEMI"
+            });
+        });
+        assignments = Object.keys(byTarget).map(function (k) {
+            const a = byTarget[k]; a.selfSufficient = false; return a;
+        });
 
-        const activeTargets = skipBonus ? distTargets.filter(function (t) { return !t.bonus; }) : distTargets;
-        if (!activeTargets.length) { status.textContent = "Todos os alvos são bônus e estão sendo pulados — desmarque a opção ou adicione alvos normais."; return; }
+        if (!skipBonus) {
+            parsed.bonusTargets.forEach(function (b) {
+                assignments.push({ target: { coord: b.coord, x: b.x, y: b.y, owner: b.owner, bonus: true }, fulls: [], selfSufficient: true });
+            });
+        }
 
-        // aplica a cota de F/S por jogador (opcional), cortando o excedente da pool antes de distribuir
+        // cota de F/S por jogador (opcional) — só avisa, não bloqueia nem remove nada
         let quotaNote = "";
         const quotaRaw = document.getElementById("jjopg-dist-quota-box").value;
         if (quotaRaw.trim()) {
             const quotas = parsePlayerQuota(quotaRaw, knownPlayerNames());
-            const quotaMap = {};
-            quotas.forEach(function (q) { quotaMap[q.player] = q; });
-            const usedCount = {};
-            const before = distPool.length;
-            distPool = distPool.filter(function (f) {
-                const q = quotaMap[f.player];
-                if (!q) return true; // jogador sem cota definida = sem limite
-                const key = f.player + "|" + f.type;
-                const limit = f.type === "FULL" ? q.fullQuota : q.semiQuota;
-                const used = usedCount[key] || 0;
-                if (used >= limit) return false;
-                usedCount[key] = used + 1;
-                return true;
+            const used = {};
+            parsed.entries.forEach(function (e) {
+                if (e.role === "FULL" || e.role === "SEMI") {
+                    const key = e.player + "|" + e.role;
+                    used[key] = (used[key] || 0) + 1;
+                }
             });
-            const removed = before - distPool.length;
-            quotaNote = " Cota aplicada (" + quotas.length + " jogador(es))" + (removed ? ": " + removed + " full(s)/semi(s) além da cota foram excluídos desta distribuição" : "") + ".";
-            if (!distPool.length) { status.textContent = "A cota zerou toda a pool disponível — confira os números da caixa de cota."; return; }
+            const warnings = [];
+            quotas.forEach(function (q) {
+                const usedFull = used[q.player + "|FULL"] || 0;
+                const usedSemi = used[q.player + "|SEMI"] || 0;
+                if (usedFull > q.fullQuota) warnings.push(q.player + ": " + usedFull + " FULL usados (cota " + q.fullQuota + ")");
+                if (usedSemi > q.semiQuota) warnings.push(q.player + ": " + usedSemi + " SEMI usados (cota " + q.semiQuota + ")");
+            });
+            if (warnings.length) quotaNote = " ⚠️ Acima da cota: " + warnings.join(" | ");
         }
 
-        const pool = distPool.slice();
-        assignments = [];
-
-        activeTargets.forEach(function (target) {
-            // alvos bônus nunca precisam de fulls de apoio — nunca consomem a pool, não importa o número marcado
-            const need = target.bonus ? 0 : ((target.needFulls !== undefined && target.needFulls !== null) ? target.needFulls : minFulls);
-
-            if (need <= 0) {
-                assignments.push({ target: target, fulls: [], selfSufficient: true });
-                return;
-            }
-
-            const withDist = pool.map(function (f) { return { full: f, d: dist(target, f) }; })
-                .sort(function (a, b) { return a.d - b.d; });
-            const chosen = withDist.slice(0, need);
-            chosen.forEach(function (c) {
-                const idx = pool.indexOf(c.full);
-                if (idx >= 0) pool.splice(idx, 1);
-            });
-            assignments.push({
-                target: target,
-                fulls: chosen.map(function (c, i) {
-                    return { coord: c.full.coord, x: c.full.x, y: c.full.y, player: c.full.player, dist: c.d, role: i === 0 ? "NT (nobre)" : "Full apoio" };
-                }),
-                selfSufficient: false,
-                needWanted: need
-            });
-        });
-
-        lastDistPool = distPool;
-
-        const incompletos = assignments.filter(function (a) { return !a.selfSufficient && a.fulls.length < a.needWanted; }).length;
-        const skipped = distTargets.length - activeTargets.length;
-        status.textContent = "Distribuição gerada para " + assignments.length + " alvo(s)." +
-            (incompletos ? " (" + incompletos + " sem fulls suficientes pra cobrir o pedido)" : "") +
-            (skipped ? " (" + skipped + " alvo(s) bônus pulado(s))" : "") +
+        const skippedBonus = skipBonus ? parsed.bonusTargets.length : 0;
+        status.textContent = "Organizado " + parsed.entries.length + " apoio(s) em " + Object.keys(byTarget).length + " alvo(s)" +
+            (parsed.bonusTargets.length ? " + " + parsed.bonusTargets.length + " alvo(s) bônus" : "") +
+            (skippedBonus ? " (" + skippedBonus + " bônus ocultado(s))" : "") +
             quotaNote;
 
-        renderDistResultsByField(box, distTargets, distPool);
+        renderDistResultsByField(box);
     };
 
-    function renderDistResultsByField(box, distTargets, distPool) {
+    function renderDistResultsByField(box) {
         // separa os resultados em 4 campos: NT, Fulls, Semi-fulls, Bônus
         const ntItems = [], fullItems = [], semiItems = [];
         assignments.forEach(function (a) {
+            if (a.selfSufficient) return;
             a.fulls.forEach(function (f) {
-                const label = f.coord + " (" + f.player + ") → " + a.target.coord + (a.target.bonus ? " 🎁" : "");
-                if (f.role === "NT (nobre)") {
-                    ntItems.push(label);
-                } else {
-                    const t = fullTypeByCoord(f.coord, distPool);
-                    if (t === "SEMI") semiItems.push(label); else fullItems.push(label);
-                }
+                const label = f.coord + " (" + f.player + ") → " + a.target.coord;
+                if (f.type === "NT") ntItems.push(label);
+                else if (f.type === "SEMI") semiItems.push(label);
+                else fullItems.push(label);
             });
         });
-        const bonusItems = distTargets.filter(function (t) { return t.bonus; })
-            .map(function (t) { return t.coord + " - " + t.owner; });
-        const selfSuffItems = assignments.filter(function (a) { return a.selfSufficient; })
-            .map(function (a) { return a.target.coord + " - " + a.target.owner + (a.target.bonus ? " 🎁" : ""); });
+        const bonusItems = assignments.filter(function (a) { return a.target.bonus; })
+            .map(function (a) { return a.target.coord + " - " + (a.target.owner || "?"); });
 
         function field(title, items, color) {
             let h = '<div style="margin-bottom:10px;">';
@@ -778,7 +739,6 @@ javascript:(function () {
         html += field("⚔️ Alvos Fulls", fullItems, "#7fb8e0");
         html += field("🌓 Alvos Semi-fulls", semiItems, "#b08cd6");
         html += field("🎁 Alvos Bônus", bonusItems, "#e0b84a");
-        if (selfSuffItems.length) html += field("✅ Alvos auto-suficientes (sem apoio)", selfSuffItems, "#8c8");
         box.innerHTML = html;
 
         const textareas = box.querySelectorAll("textarea");
@@ -788,43 +748,8 @@ javascript:(function () {
     }
 
     // ================= SEÇÃO 7: GERADOR DE MENSAGEM DA OPERAÇÃO =================
-    // MODELO PADRÃO FIXO — só data e horário mudam. Uma mensagem única pra postar no grupo/tribo.
-    function fullTypeByCoord(coord, pool) {
-        const list = pool || ownFulls;
-        const f = list.find(function (x) { return x.coord === coord; });
-        return f ? f.type : null; // "FULL" | "SEMI" | null
-    }
-
-    // Monta o texto de cada caixa a partir da última distribuição gerada na Etapa 3 (só um ponto de partida — o usuário edita depois).
-    function fillOpBoxesFromDistribution() {
-        const ntLines = [], fullLines = [], semiLines = [];
-        assignments.forEach(function (a) {
-            a.fulls.forEach(function (f) {
-                const line = f.coord + " (" + f.player + ") → " + a.target.coord;
-                if (f.role === "NT (nobre)") {
-                    ntLines.push(line);
-                } else {
-                    const t = fullTypeByCoord(f.coord, lastDistPool);
-                    if (t === "SEMI") semiLines.push(line); else fullLines.push(line);
-                }
-            });
-        });
-        const bonusLines = assignments.filter(function (a) { return a.target.bonus; })
-            .map(function (a) { return a.target.coord + " - " + a.target.owner; });
-
-        document.getElementById("jjopg-mp-nt").value = ntLines.join("\n");
-        document.getElementById("jjopg-mp-fulls").value = fullLines.join("\n");
-        document.getElementById("jjopg-mp-semis").value = semiLines.join("\n");
-        document.getElementById("jjopg-mp-bonus").value = bonusLines.join("\n");
-    }
-    document.getElementById("jjopg-mp-fill").onclick = function () {
-        if (!assignments.length) {
-            document.getElementById("jjopg-mp-status").textContent = "Nenhuma distribuição gerada ainda na Etapa 3 — as caixas continuam em branco, edite/cole manualmente.";
-            return;
-        }
-        fillOpBoxesFromDistribution();
-        document.getElementById("jjopg-mp-status").textContent = "Caixas preenchidas a partir da última distribuição. Edite como quiser antes de gerar a mensagem.";
-    };
+    // MODELO PADRÃO FIXO — só data e horário mudam. 100% manual: nenhuma caixa é preenchida
+    // automaticamente a partir da Etapa 3 — você escreve/cola tudo aqui do zero.
 
     // Monta a mensagem final DIRETO do conteúdo atual das 5 caixas — não depende de assignments/targets/ownFulls.
     function buildOpAnnouncement(dateStr, timeStr, ntText, fakeText, fullText, semiText, bonusText) {
