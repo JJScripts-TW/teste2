@@ -507,6 +507,10 @@ javascript:(function () {
             const trimmed = part.trim();
             const nm = trimmed.match(/^(.+?):(\d+)\s*-*\s*$/);
             if (nm) return { name: nm[1].trim(), lineDefault: parseInt(nm[2], 10) };
+            // "Nome:N" (a letra N, sem número — "sem quantidade definida") conta como se não tivesse ":N"
+            // nenhum, pra bater com o MESMO nome escrito sem ":N" em outra caixinha (ex: "- J J -:N" == "- J J -")
+            const nMarker = trimmed.match(/^(.+?):[Nn]\s*-*\s*$/);
+            if (nMarker) return { name: nMarker[1].trim() || "?", lineDefault: null };
             const cleaned = trimmed.replace(/-+\s*$/, "").trim();
             return { name: cleaned || "?", lineDefault: null };
         }
