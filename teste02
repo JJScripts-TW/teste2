@@ -903,45 +903,9 @@ javascript:(function () {
         document.getElementById("jjopg-mp-copy").onclick = function () { copyText(this, text); };
     };
 
-    // ---------------- Mensagens INDIVIDUAIS (uma por jogador, só com o que ele precisa mandar) ----------------
-    // Reconhece as linhas nos formatos que as próprias caixas usam:
-    //   Fulls/Semis: "Nome → coord"  ou  "Nome → coord (Dono)"  ou  "Nome → coord x3"
-    //   NT/Fakes:    "coord (Nome) → coord"  ou  "coord (Nome) → coord (nota)"
-    function parseArrowLines(text) {
-        const out = [];
-        text.split("\n").forEach(function (raw) {
-            const line = raw.trim();
-            if (!line) return;
-            const m = line.match(/^(.+?)\s*→\s*(\d{1,3}\|\d{1,3})\s*(?:\(([^)]*)\))?\s*(?:x(\d+))?\s*$/i);
-            if (m) out.push({ player: m[1].trim(), coord: m[2], note: m[3] ? m[3].trim() : "", count: m[4] ? parseInt(m[4], 10) : 1 });
-        });
-        return out;
-    }
-    function parseSourceParenLines(text) {
-        const out = [];
-        text.split("\n").forEach(function (raw) {
-            const line = raw.trim();
-            if (!line) return;
-            const m = line.match(/^(\d{1,3}\|\d{1,3})\s*\(([^)]*)\)\s*→\s*(\d{1,3}\|\d{1,3})\s*(?:\(([^)]*)\))?\s*$/i);
-            if (m) out.push({ player: m[2].trim(), source: m[1], coord: m[3], note: m[4] ? m[4].trim() : "" });
-        });
-        return out;
-    }
-    // bônus é texto livre — só consegue atribuir a um jogador quando a linha COMEÇA com o nome dele;
-    // dessa linha extrai só as coordenadas (ignora "Nome - Bonus:" etc), uma por linha na mensagem final.
-    function assignBonusLines(text, players) {
-        const byPlayer = {};
-        const unassigned = [];
-        text.split("\n").forEach(function (raw) {
-            const line = raw.trim();
-            if (!line) return;
-            const hit = players.find(function (p) { return line.toLowerCase().indexOf(p.toLowerCase()) === 0; });
-            const coords = extractPlainCoords(line).map(function (c) { return c.coord; });
-            if (hit) { Array.prototype.push.apply(byPlayer[hit] = byPlayer[hit] || [], coords.length ? coords : [line]); }
-            else unassigned.push(line);
-        });
-        return { byPlayer: byPlayer, unassigned: unassigned };
-    }
+    // ---------------- Mensagens INDIVIDUAIS (uma por jogador, com nome + botão de copiar) ----------------
+    // As 4 caixinhas usam o MESMO formato da Etapa 2/3 ("Nome:N - coord coord coord", com bonus etc) —
+    // por isso reaproveita parseNamedList pra ligar as 4 caixas por nick.
 
     // Mensagem individual: mesma estrutura de seções/spoiler do modelo padrão, mas só com as
     // coordenadas de UM jogador em cada campo (sem repetir o nome, já que a mensagem é dele).
@@ -949,16 +913,16 @@ javascript:(function () {
         let msg = "⚔️ OPERAÇÃO — " + (dateStr || "(defina a data)") + " — " + player + " ⚔️\n\n" +
             "🕛 Horário de impacto: " + (timeStr || "(defina o horário)") + "\n";
         if (data.nt.length) {
-            msg += "\n🎯 SEU(S) NT\n\n[spoiler]\n" + data.nt.map(function (e) { return e.source + " → " + e.coord; }).join("\n") + "\n[/spoiler]\n";
+            msg += "\n🎯 SEU(S) NT\n\n[spoiler]\n" + data.nt.join("\n") + "\n[/spoiler]\n";
         }
         if (data.fakes.length) {
-            msg += "\n🎭 SEUS FAKES COORDENADOS\n\n[spoiler]\n" + data.fakes.map(function (e) { return e.source + " → " + e.coord; }).join("\n") + "\n[/spoiler]\n";
+            msg += "\n🎭 SEUS FAKES COORDENADOS\n\n[spoiler]\n" + data.fakes.join("\n") + "\n[/spoiler]\n";
         }
         if (data.fulls.length || data.semis.length) {
             msg += "\n⚔️ SEUS FULLS E SEMI-FULLS\n\n[spoiler]\n";
-            if (data.fulls.length) msg += "FULLS\n\n" + data.fulls.map(function (e) { return e.coord + (e.count > 1 ? " x" + e.count : ""); }).join("\n") + "\n";
+            if (data.fulls.length) msg += "FULLS\n\n" + data.fulls.join("\n") + "\n";
             if (data.fulls.length && data.semis.length) msg += "\n";
-            if (data.semis.length) msg += "SEMI-FULLS\n\n" + data.semis.map(function (e) { return e.coord + (e.count > 1 ? " x" + e.count : ""); }).join("\n") + "\n";
+            if (data.semis.length) msg += "SEMI-FULLS\n\n" + data.semis.join("\n") + "\n";
             msg += "[/spoiler]\n";
         }
         if (data.bonus.length) {
@@ -987,34 +951,32 @@ javascript:(function () {
         const dateStr = document.getElementById("jjopg-op-date").value.trim();
         const timeStr = document.getElementById("jjopg-op-time").value.trim();
 
-        const ntEntries = parseSourceParenLines(document.getElementById("jjopg-mp-nt").value);
-        const fakeEntries = parseSourceParenLines(document.getElementById("jjopg-mp-fakes").value);
-        const fullEntries = parseArrowLines(document.getElementById("jjopg-mp-fulls").value);
-        const semiEntries = parseArrowLines(document.getElementById("jjopg-mp-semis").value);
+        const ntEntries = parseNamedList(document.getElementById("jjopg-mp-nt").value);
+        const fakeEntries = parseNamedList(document.getElementById("jjopg-mp-fakes").value);
+        const fullEntries = parseNamedList(document.getElementById("jjopg-mp-fulls").value);
+        const semiEntries = parseNamedList(document.getElementById("jjopg-mp-semis").value);
+        const bonusEntries = parseNamedList(document.getElementById("jjopg-mp-bonus").value);
 
         const playersSet = {};
-        [ntEntries, fakeEntries, fullEntries, semiEntries].forEach(function (list) {
-            list.forEach(function (e) { playersSet[e.player] = true; });
+        [ntEntries, fakeEntries, fullEntries, semiEntries, bonusEntries].forEach(function (list) {
+            list.forEach(function (e) { if (e.name && e.name !== "?") playersSet[e.name] = true; });
         });
         const players = Object.keys(playersSet);
-        if (!players.length) { status.textContent = "Não encontrei nenhuma linha reconhecível nas caixas de NT/Fakes/Fulls/Semis acima."; return; }
+        if (!players.length) { status.textContent = "Não encontrei nenhum nick reconhecível nas 4 caixas acima (formato: Nome:N - coord coord ...)."; return; }
 
-        const bonusResult = assignBonusLines(document.getElementById("jjopg-mp-bonus").value, players);
+        function coordsOf(list, name) { return list.filter(function (e) { return e.name === name; }).map(function (e) { return e.coord; }); }
 
         let html = "";
         players.sort().forEach(function (p) {
             const data = {
-                nt: ntEntries.filter(function (e) { return e.player === p; }),
-                fakes: fakeEntries.filter(function (e) { return e.player === p; }),
-                fulls: fullEntries.filter(function (e) { return e.player === p; }),
-                semis: semiEntries.filter(function (e) { return e.player === p; }),
-                bonus: bonusResult.byPlayer[p] || []
+                nt: coordsOf(ntEntries, p),
+                fakes: coordsOf(fakeEntries, p),
+                fulls: coordsOf(fullEntries, p),
+                semis: coordsOf(semiEntries, p),
+                bonus: coordsOf(bonusEntries, p)
             };
             html += messageBlockHtml(p, buildIndividualMessage(p, dateStr, timeStr, data));
         });
-        if (bonusResult.unassigned.length) {
-            html += fieldHtml("🎁 Bônus não identificados (não bateram com nenhum nome de jogador)", bonusResult.unassigned, "#e0b84a");
-        }
         box.innerHTML = html;
         wireFieldCopyButtons(box);
         status.textContent = players.length + " mensagem(ns) individual(is) gerada(s).";
