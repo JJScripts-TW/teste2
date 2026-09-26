@@ -161,8 +161,8 @@ javascript:(function () {
             <details id="sec8" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
                 <summary style="cursor:pointer;color:${gold};font-weight:700;">5️⃣ Visualizar plano no mapa real</summary>
                 <div style="margin-top:8px;">
-                    <div style="color:#999;margin-bottom:6px;">Só funciona se você estiver com o mapa do jogo (screen=map) aberto. Verde = aldeias de origem do plano, Vermelho = alvos.</div>
-                    <button id="jjopg-showmap" style="width:100%;padding:9px;margin-bottom:6px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🗺️ DESTACAR PLANO NO MAPA</button>
+                    <div style="color:#999;margin-bottom:6px;">Só funciona se você estiver com o mapa do jogo (screen=map) aberto. Usa as caixas de NT e FAKES da Etapa 4: 🎯 amarelo = alvo NT real, 🎭 branco = alvo fake, cada um com o nome do dono. Dê zoom no mapa pra ver certinho.</div>
+                    <button id="jjopg-showmap" style="width:100%;padding:9px;margin-bottom:6px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🗺️ DESTACAR NT (AMARELO) E FAKES (BRANCO) NO MAPA</button>
                     <button id="jjopg-clearmap" style="width:100%;padding:8px;background:#2a1414;color:#e88;font-weight:700;border:1px solid #a55;border-radius:8px;cursor:pointer;">🗑️ LIMPAR DESTAQUES</button>
                     <div id="jjopg-map-status" style="color:#999;margin-top:6px;"></div>
                 </div>
@@ -1030,32 +1030,107 @@ javascript:(function () {
     };
 
     // ================= SEÇÃO 8: VISUALIZAR NO MAPA REAL =================
+    // Lê as caixas de NT e FAKES da Etapa 4 (jjopg-mp-nt / jjopg-mp-fakes) e destaca no mapa real do jogo:
+    // alvos reais (NT) em AMARELO, alvos fake em BRANCO, cada um com o nome do dono flutuando em cima da
+    // aldeia — os rótulos acompanham pan/zoom via setInterval, igual ao sistema de nomes da Etapa 2.
+    let opMapTargets = [];        // {name, coord, x, y, kind: "nt"|"fake"}
+    let opMapLabelInterval = null;
+
+    function updateOpMapLabels() {
+        if (typeof TWMap === "undefined" || !TWMap.villages) return;
+        opMapTargets.forEach(function (t) {
+            const v = TWMap.villages[t.x * 1000 + t.y];
+            const labelId = "jj-opmaplabel-" + (v ? v.id : "c" + t.coord.replace("|", "_"));
+
+            const el = v && document.getElementById("map_village_" + v.id);
+            if (!el) {
+                const stale = document.getElementById(labelId);
+                if (stale) stale.style.display = "none";
+                return;
+            }
+            const r = el.getBoundingClientRect();
+            if (!r || (r.width === 0 && r.height === 0 && r.top === 0 && r.left === 0)) {
+                const stale2 = document.getElementById(labelId);
+                if (stale2) stale2.style.display = "none";
+                return;
+            }
+
+            const isFake = t.kind === "fake";
+            el.style.filter = isFake
+                ? "brightness(230%) grayscale(100%)"
+                : "brightness(170%) sepia(1) saturate(8) hue-rotate(-10deg)";
+
+            let label = document.getElementById(labelId);
+            if (!label) {
+                label = document.createElement("div");
+                label.id = labelId;
+                document.body.appendChild(label);
+            }
+            label.style.cssText = "position:fixed;z-index:999997;font-size:10px;font-weight:800;padding:1px 5px;border-radius:4px;white-space:nowrap;pointer-events:none;transform:translate(-50%,-130%);" +
+                (isFake
+                    ? "background:#000;color:#fff;border:1px solid #fff;"
+                    : "background:#000;color:#ffe066;border:1px solid " + gold + ";");
+            label.style.display = "block";
+            label.textContent = (isFake ? "🎭 " : "🎯 ") + t.name;
+            label.style.left = (r.left + r.width / 2) + "px";
+            label.style.top = r.top + "px";
+        });
+    }
+
     document.getElementById("jjopg-showmap").onclick = function () {
         const status = document.getElementById("jjopg-map-status");
         if (typeof TWMap === "undefined" || !TWMap.villages) {
             status.textContent = "Abra o mapa do jogo (screen=map) para visualizar.";
             return;
         }
-        if (!assignments.length) { status.textContent = "Gere a distribuição na Etapa 5 primeiro."; return; }
 
-        let marked = 0;
-        assignments.forEach(function (a) {
-            const tv = TWMap.villages[a.target.x * 1000 + a.target.y];
-            if (tv) {
-                const el = document.getElementById("map_village_" + tv.id);
-                if (el) { el.style.filter = "brightness(160%) sepia(1) saturate(6) hue-rotate(-50deg)"; marked++; }
-            }
-            a.fulls.forEach(function (f) {
-                const fv = TWMap.villages[f.x * 1000 + f.y];
-                if (fv) {
-                    const el = document.getElementById("map_village_" + fv.id);
-                    if (el) { el.style.filter = "brightness(160%) sepia(1) saturate(6) hue-rotate(70deg)"; marked++; }
-                }
-            });
+        const ntList = parseNamedList(document.getElementById("jjopg-mp-nt").value);
+        const fakeList = parseNamedList(document.getElementById("jjopg-mp-fakes").value);
+        if (!ntList.length && !fakeList.length) {
+            status.textContent = "Cole os alvos nas caixas de NT e/ou FAKES da Etapa 4 primeiro.";
+            return;
+        }
+
+        // remove rótulos antigos antes de reconstruir a lista (evita "fantasmas" de uma visualização anterior)
+        document.querySelectorAll('[id^="jj-opmaplabel-"]').forEach(function (el) { el.remove(); });
+
+        const seen = {};
+        opMapTargets = [];
+        ntList.forEach(function (p) {
+            const key = p.coord + "|nt";
+            if (seen[key]) return;
+            seen[key] = true;
+            opMapTargets.push({ name: p.name, coord: p.coord, x: p.x, y: p.y, kind: "nt" });
         });
-        status.textContent = marked + " aldeia(s) destacada(s) (verde = origem, vermelho = alvo). Só as já carregadas na tela.";
+        fakeList.forEach(function (p) {
+            const key = p.coord + "|fake";
+            if (seen[key]) return;
+            seen[key] = true;
+            opMapTargets.push({ name: p.name, coord: p.coord, x: p.x, y: p.y, kind: "fake" });
+        });
+
+        updateOpMapLabels();
+        if (opMapLabelInterval) clearInterval(opMapLabelInterval);
+        opMapLabelInterval = setInterval(updateOpMapLabels, 250); // acompanha pan/zoom do mapa
+
+        let notFound = 0;
+        opMapTargets.forEach(function (t) { if (!TWMap.villages[t.x * 1000 + t.y]) notFound++; });
+        status.textContent = opMapTargets.length + " alvo(s) destacado(s) (🎯 amarelo = NT real, 🎭 branco = fake). Dê zoom/navegue no mapa pra ver os que ainda não carregaram." +
+            (notFound ? " (" + notFound + " ainda não encontrados no setor atual)" : "");
     };
     document.getElementById("jjopg-clearmap").onclick = function () {
+        if (opMapLabelInterval) { clearInterval(opMapLabelInterval); opMapLabelInterval = null; }
+        opMapTargets.forEach(function (t) {
+            if (typeof TWMap !== "undefined" && TWMap.villages) {
+                const v = TWMap.villages[t.x * 1000 + t.y];
+                if (v) {
+                    const el = document.getElementById("map_village_" + v.id);
+                    if (el) el.style.filter = "";
+                }
+            }
+        });
+        opMapTargets = [];
+        document.querySelectorAll('[id^="jj-opmaplabel-"]').forEach(function (el) { el.remove(); });
         document.querySelectorAll('[id^="map_village_"]').forEach(function (el) { el.style.filter = ""; });
         document.getElementById("jjopg-map-status").textContent = "Destaques removidos.";
     };
