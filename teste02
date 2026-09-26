@@ -100,6 +100,10 @@ javascript:(function () {
                     <div style="color:#888;margin-bottom:3px;">Mesmo formato editável da Etapa 1: <code>coord - jogador - FULL/SEMI (M:x CL:y AR:z)</code></div>
                     <textarea id="jjopg-dist-pool-box" placeholder="500|501 - Pedro - FULL (M:8000 CL:4000)" style="width:100%;box-sizing:border-box;height:90px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
 
+                    <label style="display:block;color:#bbb;margin-bottom:3px;">📋 Cota de F/S por jogador (opcional)</label>
+                    <div style="color:#888;margin-bottom:3px;">Cola direto do jogo: <code>Nome&lt;F&gt; F &lt;S&gt; S</code> (ex: <code>Arken105 F 11 S</code> = Arken tem até 105 fulls e 11 semis). Se preenchido, a distribuição usa no máximo essa quantidade de FULL/SEMI de cada jogador, mesmo que a pool acima tenha mais coordenadas dele. Deixe em branco pra não limitar ninguém. Reconhece nomes já importados na Etapa 1 pra separar certo o nome do número.</div>
+                    <textarea id="jjopg-dist-quota-box" placeholder="Arken105 F 11 S&#10;Boldin29 F 3 S" style="width:100%;box-sizing:border-box;height:70px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+
                     <label style="display:block;color:#bbb;margin-bottom:3px;">Mín. fulls por alvo (padrão, quando o alvo não tiver ":N")</label>
                     <input id="jjopg-minfulls" type="number" value="1" min="1" style="width:100%;box-sizing:border-box;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;">
                     <label style="display:flex;align-items:center;gap:6px;margin-bottom:10px;color:#bbb;"><input id="jjopg-skip-bonus" type="checkbox"> Pular alvos 🎁 bônus (mob) nesta distribuição</label>
@@ -120,11 +124,14 @@ javascript:(function () {
                         <input id="jjopg-op-time" placeholder="12:05:00.000" style="width:100%;box-sizing:border-box;padding:7px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;"></div>
                     </div>
                     <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:6px;">
-                        <span id="jjopg-mp-fill" style="cursor:pointer;color:${gold};font-size:10px;text-decoration:underline;">↻ preencher as 4 caixas com a distribuição atual (Etapa 3)</span>
+                        <span id="jjopg-mp-fill" style="cursor:pointer;color:${gold};font-size:10px;text-decoration:underline;">↻ preencher NT/Fulls/Semis/Bônus com a distribuição atual (Etapa 3)</span>
                     </div>
 
                     <label style="display:block;color:#bbb;margin-bottom:3px;">👑 Alvos NT (nobre) — nick e coordenadas</label>
                     <textarea id="jjopg-mp-nt" placeholder="500|500 (Pedro) → 480|480" style="width:100%;box-sizing:border-box;height:64px;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+
+                    <label style="display:block;color:#bbb;margin-bottom:3px;">🎭 Alvos Fakes coordenados</label>
+                    <textarea id="jjopg-mp-fakes" placeholder="500|502 (Pedro) → 481|480 (fake nobre)" style="width:100%;box-sizing:border-box;height:64px;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
 
                     <label style="display:block;color:#bbb;margin-bottom:3px;">⚔️ Fulls — nick e alvos</label>
                     <textarea id="jjopg-mp-fulls" style="width:100%;box-sizing:border-box;height:64px;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
@@ -280,6 +287,39 @@ javascript:(function () {
                 needFulls: m[3] !== undefined ? parseInt(m[3], 10) : undefined,
                 bonus: bonus
             });
+        });
+        return out;
+    }
+
+    // Cota de F/S por jogador: reconhece o formato colado do jogo "Nome<F> F <S> S" (sem espaço entre o
+    // nome e o número de F). Usa os nomes já importados na Etapa 1 (mais longo primeiro) pra separar
+    // certo onde o nome termina e o número começa — nomes que já têm dígito no fim (ex: "Cinder7")
+    // só ficam certos com essa lista; sem ela, cai num heurístico "nome mínimo" que pode errar nesses casos.
+    function knownPlayerNames() {
+        const set = {};
+        ownFulls.forEach(function (f) { set[f.player] = true; });
+        return Object.keys(set);
+    }
+    function parsePlayerQuota(text, knownNames) {
+        const names = (knownNames || []).slice().sort(function (a, b) { return b.length - a.length; });
+        const lines = text.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+        const out = [];
+        lines.forEach(function (line) {
+            let entry = null;
+            // tenta os nomes conhecidos (do mais longo pro mais curto); só aceita se o resto bater com "<F> F <S> S"
+            for (let i = 0; i < names.length && !entry; i++) {
+                const n = names[i];
+                if (line.toLowerCase().indexOf(n.toLowerCase()) === 0) {
+                    const rest = line.slice(n.length);
+                    const m = rest.match(/^\s*(\d+)\s*F\s*(\d+)\s*S\s*$/i);
+                    if (m) entry = { player: n, fullQuota: parseInt(m[1], 10), semiQuota: parseInt(m[2], 10), matched: true };
+                }
+            }
+            if (!entry) {
+                const m = line.match(/^(.+?)\s*(\d+)\s*F\s*(\d+)\s*S\s*$/i);
+                if (m) entry = { player: m[1].trim(), fullQuota: parseInt(m[2], 10), semiQuota: parseInt(m[3], 10), matched: false };
+            }
+            if (entry) out.push(entry);
         });
         return out;
     }
@@ -458,35 +498,61 @@ javascript:(function () {
 
     function parseNamedList(text) {
         // formatos aceitos, misturáveis livremente:
-        //   "João:3 500|500 501|502 502|503"   -> todas as coordenadas do João precisam de 3 fulls
-        //   "Maria 500|500:0 501|502:2"        -> número por coordenada individual (tem prioridade)
-        //   "Pedro:3 500|500:0 501|502"        -> mistura: 500|500 vira 0 (override), 501|502 usa o 3 padrão do Pedro
-        //   "500|500*" ou "500|500:2*"         -> "*" marca o alvo como BÔNUS (só visual/etiqueta, entra na distribuição normalmente)
-        //   sem nenhum ":N"                     -> usa o padrão configurado na Etapa 3
+        //   "João:3 500|500 501|502 502|503"          -> todas as coordenadas do João precisam de 3 fulls
+        //   "João:3 - 500|500 501|502 502|503"        -> mesma coisa, com um "-" separando nome/número das coordenadas
+        //   "Maria 500|500:0 501|502:2"               -> número por coordenada individual (tem prioridade sobre o do nome)
+        //   "Pedro:3 500|500:0 501|502"                -> mistura: 500|500 vira 0 (override), 501|502 usa o 3 padrão do Pedro
+        //   "500|500*" ou "500|500:2*"                 -> "*" marca UMA coordenada específica como BÔNUS
+        //   "Fulano:2 - 500|500 501|501 - Bonus: 502|502 503|503"  -> a palavra "Bonus" (maiúscula ou minúscula, em
+        //       qualquer parte da linha) marca tudo que vem DEPOIS dela como alvo bônus; o que vem antes continua normal
+        //   "Fulano:0 - BONUS - 500|500 501|501"       -> como não tem nenhuma coordenada antes de "BONUS", a linha inteira vira bônus
+        //   sem nenhum ":N"                             -> usa o padrão configurado na Etapa 3
+        //   Alvos bônus NUNCA precisam de fulls de apoio (não entram na distribuição), não importa o número que apareça.
         const lines = text.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
         const out = [];
-        lines.forEach(function (line) {
-            const coordRe = /(\d{1,3}\|\d{1,3})(?::(\d+))?(\*)?/g;
+
+        function extractCoords(segment) {
+            const re = /(\d{1,3}\|\d{1,3})(?::(\d+))?(\*)?/g;
             const found = [];
-            let m, firstIdx = -1;
-            while ((m = coordRe.exec(line)) !== null) {
-                if (firstIdx === -1) firstIdx = m.index;
+            let m;
+            while ((m = re.exec(segment)) !== null) {
                 found.push({ coordStr: m[1], need: m[2] !== undefined ? parseInt(m[2], 10) : null, bonus: !!m[3] });
             }
-            if (!found.length) return;
+            return found;
+        }
+        function nameAndDefaultFrom(part) {
+            const trimmed = part.trim();
+            const nm = trimmed.match(/^(.+?):(\d+)\s*-*\s*$/);
+            if (nm) return { name: nm[1].trim(), lineDefault: parseInt(nm[2], 10) };
+            const cleaned = trimmed.replace(/-+\s*$/, "").trim();
+            return { name: cleaned || "?", lineDefault: null };
+        }
 
-            let namePart = line.slice(0, firstIdx).trim();
-            if (!namePart) namePart = "?";
-            let name = namePart, lineDefault = null;
-            const nm = namePart.match(/^(.+?):(\d+)$/);
-            if (nm) { name = nm[1].trim(); lineDefault = parseInt(nm[2], 10); }
+        lines.forEach(function (line) {
+            const bonusIdx = line.search(/bonus/i);
+            const beforeBonus = bonusIdx === -1 ? line : line.slice(0, bonusIdx);
+            const afterBonus = bonusIdx === -1 ? "" : line.slice(bonusIdx + 5); // pula a palavra "bonus"
 
-            found.forEach(function (f) {
+            const beforeCoords = extractCoords(beforeBonus);
+            const firstIdx = beforeBonus.search(/\d{1,3}\|\d{1,3}/);
+            const namePart = firstIdx === -1 ? beforeBonus : beforeBonus.slice(0, firstIdx);
+            const nd = nameAndDefaultFrom(namePart);
+            const name = nd.name, lineDefault = nd.lineDefault;
+
+            beforeCoords.forEach(function (f) {
                 const pc = parseCoord(f.coordStr);
                 if (!pc) return;
-                const need = f.need !== null ? f.need : lineDefault;
-                out.push({ name: name, coord: pc.coord, x: pc.x, y: pc.y, need: need, bonus: f.bonus });
+                const need = f.bonus ? 0 : (f.need !== null ? f.need : lineDefault);
+                out.push({ name: name, coord: pc.coord, x: pc.x, y: pc.y, need: need, bonus: !!f.bonus });
             });
+
+            if (bonusIdx !== -1) {
+                extractCoords(afterBonus).forEach(function (f) {
+                    const pc = parseCoord(f.coordStr);
+                    if (!pc) return;
+                    out.push({ name: name, coord: pc.coord, x: pc.x, y: pc.y, need: 0, bonus: true });
+                });
+            }
         });
         return out;
     }
@@ -495,12 +561,26 @@ javascript:(function () {
         if (typeof TWMap === "undefined" || !TWMap.villages) return;
         namedTargets.forEach(function (t) {
             const v = TWMap.villages[t.x * 1000 + t.y];
-            if (!v) return;
-            const el = document.getElementById("map_village_" + v.id);
-            if (!el) return;
+            const labelId = "jj-oplabel-" + (v ? v.id : "c" + t.coord.replace("|", "_"));
+
+            // aldeia não encontrada (ainda não carregada) ou setor foi descarregado pelo pan/zoom:
+            // esconde o rótulo antigo em vez de deixá-lo "congelado" flutuando fora do lugar.
+            const el = v && document.getElementById("map_village_" + v.id);
+            if (!el) {
+                const stale = document.getElementById(labelId);
+                if (stale) stale.style.display = "none";
+                return;
+            }
+            const r = el.getBoundingClientRect();
+            // elemento existe no DOM mas está fora da área visível/renderizada (rect vazio) — mesmo tratamento
+            if (!r || (r.width === 0 && r.height === 0 && r.top === 0 && r.left === 0)) {
+                const stale2 = document.getElementById(labelId);
+                if (stale2) stale2.style.display = "none";
+                return;
+            }
+
             el.style.filter = "brightness(220%) grayscale(100%)";
 
-            const labelId = "jj-oplabel-" + v.id;
             let label = document.getElementById(labelId);
             if (!label) {
                 label = document.createElement("div");
@@ -508,8 +588,8 @@ javascript:(function () {
                 label.style.cssText = "position:fixed;z-index:999997;background:#000;color:#ffd76b;font-size:10px;font-weight:800;padding:1px 5px;border-radius:4px;white-space:nowrap;pointer-events:none;border:1px solid " + gold + ";transform:translate(-50%,-130%);";
                 document.body.appendChild(label);
             }
+            label.style.display = "block";
             label.textContent = (t.bonus ? "🎁 " : "") + t.name;
-            const r = el.getBoundingClientRect();
             label.style.left = (r.left + r.width / 2) + "px";
             label.style.top = r.top + "px";
         });
@@ -592,7 +672,7 @@ javascript:(function () {
         const skipBonus = document.getElementById("jjopg-skip-bonus").checked;
 
         const distTargets = parseDistTargetsText(document.getElementById("jjopg-dist-targets-box").value);
-        const distPool = parseFullsListText(document.getElementById("jjopg-dist-pool-box").value);
+        let distPool = parseFullsListText(document.getElementById("jjopg-dist-pool-box").value);
 
         if (!distPool.length) { status.textContent = "Preencha a caixa de fulls/semi-fulls disponíveis (ou clique em ↻ preencher com fulls/semis atuais)."; return; }
         if (!distTargets.length) { status.textContent = "Preencha a caixa de coordenadas alvo (ou clique em ↻ preencher com alvos atuais)."; return; }
@@ -600,11 +680,36 @@ javascript:(function () {
         const activeTargets = skipBonus ? distTargets.filter(function (t) { return !t.bonus; }) : distTargets;
         if (!activeTargets.length) { status.textContent = "Todos os alvos são bônus e estão sendo pulados — desmarque a opção ou adicione alvos normais."; return; }
 
+        // aplica a cota de F/S por jogador (opcional), cortando o excedente da pool antes de distribuir
+        let quotaNote = "";
+        const quotaRaw = document.getElementById("jjopg-dist-quota-box").value;
+        if (quotaRaw.trim()) {
+            const quotas = parsePlayerQuota(quotaRaw, knownPlayerNames());
+            const quotaMap = {};
+            quotas.forEach(function (q) { quotaMap[q.player] = q; });
+            const usedCount = {};
+            const before = distPool.length;
+            distPool = distPool.filter(function (f) {
+                const q = quotaMap[f.player];
+                if (!q) return true; // jogador sem cota definida = sem limite
+                const key = f.player + "|" + f.type;
+                const limit = f.type === "FULL" ? q.fullQuota : q.semiQuota;
+                const used = usedCount[key] || 0;
+                if (used >= limit) return false;
+                usedCount[key] = used + 1;
+                return true;
+            });
+            const removed = before - distPool.length;
+            quotaNote = " Cota aplicada (" + quotas.length + " jogador(es))" + (removed ? ": " + removed + " full(s)/semi(s) além da cota foram excluídos desta distribuição" : "") + ".";
+            if (!distPool.length) { status.textContent = "A cota zerou toda a pool disponível — confira os números da caixa de cota."; return; }
+        }
+
         const pool = distPool.slice();
         assignments = [];
 
         activeTargets.forEach(function (target) {
-            const need = (target.needFulls !== undefined && target.needFulls !== null) ? target.needFulls : minFulls;
+            // alvos bônus nunca precisam de fulls de apoio — nunca consomem a pool, não importa o número marcado
+            const need = target.bonus ? 0 : ((target.needFulls !== undefined && target.needFulls !== null) ? target.needFulls : minFulls);
 
             if (need <= 0) {
                 assignments.push({ target: target, fulls: [], selfSufficient: true });
@@ -634,7 +739,8 @@ javascript:(function () {
         const skipped = distTargets.length - activeTargets.length;
         status.textContent = "Distribuição gerada para " + assignments.length + " alvo(s)." +
             (incompletos ? " (" + incompletos + " sem fulls suficientes pra cobrir o pedido)" : "") +
-            (skipped ? " (" + skipped + " alvo(s) bônus pulado(s))" : "");
+            (skipped ? " (" + skipped + " alvo(s) bônus pulado(s))" : "") +
+            quotaNote;
 
         renderDistResultsByField(box, distTargets, distPool);
     };
@@ -720,12 +826,14 @@ javascript:(function () {
         document.getElementById("jjopg-mp-status").textContent = "Caixas preenchidas a partir da última distribuição. Edite como quiser antes de gerar a mensagem.";
     };
 
-    // Monta a mensagem final DIRETO do conteúdo atual das 4 caixas — não depende de assignments/targets/ownFulls.
-    function buildOpAnnouncement(dateStr, timeStr, ntText, fullText, semiText, bonusText) {
+    // Monta a mensagem final DIRETO do conteúdo atual das 5 caixas — não depende de assignments/targets/ownFulls.
+    function buildOpAnnouncement(dateStr, timeStr, ntText, fakeText, fullText, semiText, bonusText) {
         return "⚔️ OPERAÇÃO — " + (dateStr || "(defina a data)") + " ⚔️\n\n" +
             "🕛 Horário de impacto: " + (timeStr || "(defina o horário)") + "\n\n" +
             "🎯 ATAQUES COM NOBRE\n\n" +
             "[spoiler]\n" + (ntText.trim() || "COLE OS ALVOS AQUI") + "\n[/spoiler]\n\n" +
+            "🎭 ALVOS FAKES COORDENADOS\n\n" +
+            "[spoiler]\n" + (fakeText.trim() || "COLE OS ALVOS FAKES AQUI") + "\n[/spoiler]\n\n" +
             "⚔️ ALVOS FULLS E SEMI-FULLS\n\n" +
             "[spoiler]\n" +
             "FULLS\n\n" + (fullText.trim() || "COLE AS COORDENADAS DOS FULLS AQUI") + "\n\n" +
@@ -750,11 +858,12 @@ javascript:(function () {
         const dateStr = document.getElementById("jjopg-op-date").value.trim();
         const timeStr = document.getElementById("jjopg-op-time").value.trim();
         const ntText = document.getElementById("jjopg-mp-nt").value;
+        const fakeText = document.getElementById("jjopg-mp-fakes").value;
         const fullText = document.getElementById("jjopg-mp-fulls").value;
         const semiText = document.getElementById("jjopg-mp-semis").value;
         const bonusText = document.getElementById("jjopg-mp-bonus").value;
 
-        const text = buildOpAnnouncement(dateStr, timeStr, ntText, fullText, semiText, bonusText);
+        const text = buildOpAnnouncement(dateStr, timeStr, ntText, fakeText, fullText, semiText, bonusText);
 
         box.innerHTML = '<textarea id="jjopg-op-preview" readonly style="width:100%;box-sizing:border-box;height:220px;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;font-family:monospace;font-size:10px;white-space:pre-wrap;"></textarea>' +
             '<button id="jjopg-mp-copy" style="width:100%;padding:8px;background:' + gold + ';color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">📋 COPIAR MENSAGEM DA OPERAÇÃO</button>';
