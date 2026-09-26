@@ -103,6 +103,28 @@ javascript:(function () {
                 </div>
             </details>
 
+            <details id="sec5b" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
+                <summary style="cursor:pointer;color:${gold};font-weight:700;">3️⃣.2 Distribuir outra leva de alvos (rodada 2 — semi-full, fakes, etc.)</summary>
+                <div style="margin-top:8px;">
+                    <div style="color:#999;margin-bottom:6px;">Caixinha própria e independente da de cima. Cole aqui a pool que quiser usar (pode ser a sobra da rodada 1, copiada manualmente, ou qualquer outra) — não puxa nada automático.</div>
+
+                    <label style="display:block;color:#bbb;margin-bottom:3px;">🌓 Alvos desta rodada</label>
+                    <div style="color:#888;margin-bottom:3px;">Mesmo formato: <code>Nome:N coord coord coord</code>, ou só coordenadas soltas (sem nome) se preferir.</div>
+                    <textarea id="jjopg-dist-targets-box-2" placeholder="500|500 501|502 502|503&#10;Maria:2 510|498" style="width:100%;box-sizing:border-box;height:100px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+
+                    <label style="display:block;color:#bbb;margin-bottom:3px;">👥 Pool disponível para esta rodada (Nome F S)</label>
+                    <div style="color:#888;margin-bottom:3px;">Cole aqui o que tiver disponível — pode ser a sobra da rodada 1 (copie do campo "♻️ Sobra" ali de cima) ou qualquer outra lista <code>Nome F S</code>.</div>
+                    <textarea id="jjopg-dist-pool-box-2" placeholder="Arken 105 F 11 S&#10;Cinder7 24 F 20 S" style="width:100%;box-sizing:border-box;height:100px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+
+                    <label style="display:block;color:#bbb;margin-bottom:3px;">Mín. apoios por alvo desta rodada (padrão, quando não tiver ":N")</label>
+                    <input id="jjopg-minfulls-2" type="number" value="1" min="1" style="width:100%;box-sizing:border-box;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;">
+                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:10px;color:#bbb;"><input id="jjopg-skip-bonus-2" type="checkbox"> Ocultar alvos 🎁 bônus desta rodada</label>
+                    <button id="jjopg-distribute-2" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🌓 GERAR DISTRIBUIÇÃO (RODADA 2)</button>
+                    <div id="jjopg-dist-status-2" style="color:#999;margin-bottom:6px;line-height:15px;"></div>
+                    <div id="jjopg-dist-results-2"></div>
+                </div>
+            </details>
+
             <details id="sec7" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
                 <summary style="cursor:pointer;color:${gold};font-weight:700;">4️⃣ Gerador de Mensagem da Operação</summary>
                 <div style="margin-top:8px;">
@@ -611,17 +633,111 @@ javascript:(function () {
         document.getElementById("jjopg-names-status").textContent = "Nomes removidos do mapa e da lista de alvos.";
     };
 
-    // ================= SEÇÃO 5: DISTRIBUIÇÃO POR QUANTIDADE DISPONÍVEL =================
-    // Sem cálculo de distância/mapa. Caixinha 1 = alvos (reusa o mesmo formato "Nome:N coord..." da
-    // Etapa 2, via parseNamedList). Caixinha 2 = quantidade de full/semi disponível por jogador (reusa
-    // o formato "Nome F S" via parsePlayerQuota). O script só desconta da quantidade disponível, na
-    // ordem que os jogadores aparecem na caixinha 2, até cobrir o pedido de cada alvo.
-    // Fluxo em duas rodadas (ex: 1ª pros alvos FULL, 2ª pros alvos SEMI-FULL com a sobra da 1ª):
-    // depois de distribuir, o resultado mostra a "sobra" (quem não foi usado) já no formato "Nome F S" —
-    // clique em "usar sobra como nova pool" pra jogar direto na caixinha 2, troque a caixinha 1 pelos
-    // próximos alvos e gere a distribuição de novo.
+    // ================= SEÇÃO 5: DISTRIBUIÇÃO POR QUANTIDADE DISPONÍVEL (2 RODADAS) =================
+    // Sem cálculo de distância/mapa. Caixinha de alvos = "Nome:N coord..." (via parseNamedList, aceita
+    // coordenadas soltas sem nome também). Caixinha de pool = "Nome F S" por jogador (via parsePlayerQuota).
+    // O script desconta da quantidade disponível, na ordem que os jogadores aparecem na pool, até cobrir
+    // o pedido de cada alvo. Rodada 1 usa a pool que você cola; Rodada 2 (caixinha própria de alvos,
+    // pensada pros SEMI-FULL) usa AUTOMATICAMENTE a sobra que ficou da Rodada 1, sem precisar copiar/colar.
     let lastRemainingPool = {};
 
+    // aloca os alvos contra a pool disponível (mutando `remaining` in-place) — usado pelas duas rodadas
+    function allocateTargets(targetsParsed, remaining, playerOrder, minFulls, skipBonus) {
+        const activeTargets = skipBonus ? targetsParsed.filter(function (t) { return !t.bonus; }) : targetsParsed;
+        const assignmentsList = [];
+        activeTargets.forEach(function (t) {
+            // alvos bônus nunca precisam de apoio, não importa o número marcado
+            const need = t.bonus ? 0 : ((t.need !== undefined && t.need !== null) ? t.need : minFulls);
+            const targetObj = { coord: t.coord, x: t.x, y: t.y, owner: t.name, bonus: !!t.bonus };
+            if (need <= 0) { assignmentsList.push({ target: targetObj, fulls: [], selfSufficient: true }); return; }
+            const fulls = [];
+            let stillNeeded = need;
+            playerOrder.forEach(function (p) {
+                const avail = remaining[p];
+                while (stillNeeded > 0 && avail.full > 0) { avail.full--; stillNeeded--; fulls.push({ player: p, type: "FULL", role: "Full apoio" }); }
+            });
+            playerOrder.forEach(function (p) {
+                const avail = remaining[p];
+                while (stillNeeded > 0 && avail.semi > 0) { avail.semi--; stillNeeded--; fulls.push({ player: p, type: "SEMI", role: "Semi apoio" }); }
+            });
+            assignmentsList.push({ target: targetObj, fulls: fulls, selfSufficient: false, needWanted: need });
+        });
+        return { assignmentsList: assignmentsList, skippedCount: targetsParsed.length - activeTargets.length };
+    }
+
+    // Agrupa comandos repetidos do MESMO jogador pro MESMO alvo numa linha só (ex: "Ana → 500|500 x3"),
+    // quebrando em várias linhas quando passar de 5 (ex: 12 vira "x5", "x5", "x2") — pra sobrar menos linha pra separar.
+    function groupCapped(entries, capPerLine, ownerByCoord) {
+        const counts = {};
+        const order = [];
+        entries.forEach(function (e) {
+            const key = e.player + "||" + e.target;
+            if (!(key in counts)) { counts[key] = 0; order.push(key); }
+            counts[key]++;
+        });
+        const lines = [];
+        order.forEach(function (key) {
+            const parts = key.split("||");
+            const player = parts[0], target = parts[1];
+            const owner = ownerByCoord[target];
+            let remaining = counts[key];
+            while (remaining > 0) {
+                const take = Math.min(capPerLine, remaining);
+                lines.push(player + " → " + target + (owner ? " (" + owner + ")" : "") + (take > 1 ? " x" + take : ""));
+                remaining -= take;
+            }
+        });
+        return lines;
+    }
+
+    function fieldHtml(title, items, color) {
+        let h = '<div style="margin-bottom:10px;">';
+        h += '<div style="color:' + color + ';font-weight:700;margin-bottom:4px;">' + title + ' (' + items.length + ')</div>';
+        h += '<textarea readonly style="width:100%;box-sizing:border-box;height:70px;padding:6px;margin-bottom:4px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.3);border-radius:8px;font-family:monospace;font-size:10px;">' + (items.join("\n")) + '</textarea>';
+        h += '<button class="jjopg-field-copy" style="width:100%;padding:6px;background:#222;color:' + color + ';font-weight:700;border:1px solid ' + color + ';border-radius:6px;cursor:pointer;">📋 COPIAR</button>';
+        h += '</div>';
+        return h;
+    }
+
+    function wireFieldCopyButtons(box) {
+        const textareas = box.querySelectorAll("textarea");
+        box.querySelectorAll(".jjopg-field-copy").forEach(function (btn, i) {
+            btn.onclick = function () { copyText(this, textareas[i].value); };
+        });
+    }
+
+    function leftoverItemsFrom(remainingPool) {
+        const items = [];
+        Object.keys(remainingPool).forEach(function (p) {
+            const r = remainingPool[p];
+            if (r.full > 0 || r.semi > 0) items.push(p + " " + r.full + " F " + r.semi + " S");
+        });
+        return items;
+    }
+
+    function buildAssignmentFieldsHtml(assignmentsList) {
+        const fullEntries = [], semiEntries = [];
+        const ownerByCoord = {};
+        assignmentsList.forEach(function (a) {
+            ownerByCoord[a.target.coord] = a.target.owner;
+            if (a.selfSufficient) return;
+            a.fulls.forEach(function (f) {
+                const rec = { player: f.player, target: a.target.coord };
+                if (f.type === "SEMI") semiEntries.push(rec); else fullEntries.push(rec);
+            });
+        });
+        const fullItems = groupCapped(fullEntries, 5, ownerByCoord);
+        const semiItems = groupCapped(semiEntries, 5, ownerByCoord);
+        const bonusItems = assignmentsList.filter(function (a) { return a.target.bonus; })
+            .map(function (a) { return a.target.coord + " - " + (a.target.owner || "?"); });
+        let html = "";
+        html += fieldHtml("⚔️ Alvos Fulls", fullItems, "#7fb8e0");
+        html += fieldHtml("🌓 Alvos Semi-fulls", semiItems, "#b08cd6");
+        html += fieldHtml("🎁 Alvos Bônus", bonusItems, "#e0b84a");
+        return html;
+    }
+
+    // ---------------- Rodada 1 ----------------
     document.getElementById("jjopg-distribute").onclick = function () {
         const status = document.getElementById("jjopg-dist-status");
         const box = document.getElementById("jjopg-dist-results");
@@ -635,9 +751,6 @@ javascript:(function () {
         if (!targetsParsed.length) { status.textContent = "Preencha a caixinha de alvos (Nome:N coord coord ...)."; return; }
         if (!poolParsed.length) { status.textContent = "Preencha a caixinha de fulls/semis disponíveis (Nome F S)."; return; }
 
-        const activeTargets = skipBonus ? targetsParsed.filter(function (t) { return !t.bonus; }) : targetsParsed;
-        if (!activeTargets.length) { status.textContent = "Todos os alvos são bônus e estão ocultos — desmarque a opção ou adicione alvos normais."; return; }
-
         const remaining = {};
         const playerOrder = [];
         poolParsed.forEach(function (q) {
@@ -645,119 +758,59 @@ javascript:(function () {
             playerOrder.push(q.player);
         });
 
-        assignments = [];
-        activeTargets.forEach(function (t) {
-            // alvos bônus nunca precisam de apoio, não importa o número marcado
-            const need = t.bonus ? 0 : ((t.need !== undefined && t.need !== null) ? t.need : minFulls);
-            const targetObj = { coord: t.coord, x: t.x, y: t.y, owner: t.name, bonus: !!t.bonus };
-
-            if (need <= 0) {
-                assignments.push({ target: targetObj, fulls: [], selfSufficient: true });
-                return;
-            }
-
-            const fulls = [];
-            let stillNeeded = need;
-            playerOrder.forEach(function (p) {
-                const avail = remaining[p];
-                while (stillNeeded > 0 && avail.full > 0) { avail.full--; stillNeeded--; fulls.push({ player: p, type: "FULL", role: "Full apoio" }); }
-            });
-            playerOrder.forEach(function (p) {
-                const avail = remaining[p];
-                while (stillNeeded > 0 && avail.semi > 0) { avail.semi--; stillNeeded--; fulls.push({ player: p, type: "SEMI", role: "Semi apoio" }); }
-            });
-            assignments.push({ target: targetObj, fulls: fulls, selfSufficient: false, needWanted: need });
-        });
-
+        const result = allocateTargets(targetsParsed, remaining, playerOrder, minFulls, skipBonus);
+        if (!result.assignmentsList.length) { status.textContent = "Todos os alvos são bônus e estão ocultos — desmarque a opção ou adicione alvos normais."; return; }
+        assignments = result.assignmentsList;
         lastRemainingPool = remaining;
 
         const incompletos = assignments.filter(function (a) { return !a.selfSufficient && a.fulls.length < a.needWanted; }).length;
-        const skipped = targetsParsed.length - activeTargets.length;
-        status.textContent = "Distribuição gerada para " + assignments.length + " alvo(s)." +
+        status.textContent = "Rodada 1: distribuição gerada para " + assignments.length + " alvo(s)." +
             (incompletos ? " (" + incompletos + " sem apoio suficiente na pool)" : "") +
-            (skipped ? " (" + skipped + " alvo(s) bônus ocultado(s))" : "");
+            (result.skippedCount ? " (" + result.skippedCount + " alvo(s) bônus ocultado(s))" : "");
 
-        renderDistResultsByField(box);
+        const leftoverItems = leftoverItemsFrom(lastRemainingPool);
+        let html = buildAssignmentFieldsHtml(assignments);
+        html += fieldHtml("♻️ Sobra da pool (não usada nesta rodada)", leftoverItems, "#8c8");
+        html += '<div style="color:#888;margin-top:-2px;margin-bottom:8px;">Essa sobra já alimenta automaticamente a caixinha de "3️⃣.2 Distribuir alvos SEMI-FULL" logo abaixo.</div>';
+        box.innerHTML = html;
+        wireFieldCopyButtons(box);
     };
 
-    function renderDistResultsByField(box) {
-        // separa os resultados em 3 campos: Fulls, Semi-fulls, Bônus (NT continua manual na Etapa 4)
-        // Agrupa comandos repetidos do MESMO jogador pro MESMO alvo numa linha só (ex: "Ana → 500|500 x3"),
-        // quebrando em várias linhas quando passar de 5 (ex: 12 vira "x5", "x5", "x2") — pra sobrar menos linha pra separar.
-        const fullEntries = [], semiEntries = [];
-        const ownerByCoord = {};
-        assignments.forEach(function (a) {
-            ownerByCoord[a.target.coord] = a.target.owner;
-            if (a.selfSufficient) return;
-            a.fulls.forEach(function (f) {
-                const rec = { player: f.player, target: a.target.coord };
-                if (f.type === "SEMI") semiEntries.push(rec); else fullEntries.push(rec);
-            });
+    // ---------------- Rodada 2 (caixinha própria e independente, com sua própria pool manual) ----------------
+    document.getElementById("jjopg-distribute-2").onclick = function () {
+        const status = document.getElementById("jjopg-dist-status-2");
+        const box = document.getElementById("jjopg-dist-results-2");
+        box.innerHTML = "";
+        const minFulls2 = Math.max(1, parseInt(document.getElementById("jjopg-minfulls-2").value, 10) || 1);
+        const skipBonus2 = document.getElementById("jjopg-skip-bonus-2").checked;
+
+        const targetsParsed2 = parseNamedList(document.getElementById("jjopg-dist-targets-box-2").value);
+        if (!targetsParsed2.length) { status.textContent = "Preencha a caixinha de alvos desta rodada (Nome:N coord ... ou só coordenadas soltas)."; return; }
+
+        const quota2 = parsePlayerQuota(document.getElementById("jjopg-dist-pool-box-2").value, knownPlayerNames());
+        if (!quota2.length) { status.textContent = "Preencha a caixinha de pool desta rodada (formato Nome F S — ex: Arken 105 F 11 S)."; return; }
+
+        const remaining2 = {};
+        const playerOrder2 = [];
+        quota2.forEach(function (q) {
+            remaining2[q.name] = { full: q.full, semi: q.semi };
+            playerOrder2.push(q.name);
         });
 
-        function groupCapped(entries, capPerLine) {
-            const counts = {};
-            const order = [];
-            entries.forEach(function (e) {
-                const key = e.player + "||" + e.target;
-                if (!(key in counts)) { counts[key] = 0; order.push(key); }
-                counts[key]++;
-            });
-            const lines = [];
-            order.forEach(function (key) {
-                const parts = key.split("||");
-                const player = parts[0], target = parts[1];
-                const owner = ownerByCoord[target];
-                let remaining = counts[key];
-                while (remaining > 0) {
-                    const take = Math.min(capPerLine, remaining);
-                    lines.push(player + " → " + target + (owner ? " (" + owner + ")" : "") + (take > 1 ? " x" + take : ""));
-                    remaining -= take;
-                }
-            });
-            return lines;
-        }
+        const result2 = allocateTargets(targetsParsed2, remaining2, playerOrder2, minFulls2, skipBonus2);
+        if (!result2.assignmentsList.length) { status.textContent = "Todos os alvos são bônus e estão ocultos — desmarque a opção ou adicione alvos normais."; return; }
 
-        const fullItems = groupCapped(fullEntries, 5);
-        const semiItems = groupCapped(semiEntries, 5);
-        const bonusItems = assignments.filter(function (a) { return a.target.bonus; })
-            .map(function (a) { return a.target.coord + " - " + (a.target.owner || "?"); });
+        const incompletos2 = result2.assignmentsList.filter(function (a) { return !a.selfSufficient && a.fulls.length < a.needWanted; }).length;
+        status.textContent = "Rodada 2: distribuição gerada para " + result2.assignmentsList.length + " alvo(s)." +
+            (incompletos2 ? " (" + incompletos2 + " sem apoio suficiente na pool)" : "") +
+            (result2.skippedCount ? " (" + result2.skippedCount + " alvo(s) bônus ocultado(s))" : "");
 
-        function field(title, items, color) {
-            let h = '<div style="margin-bottom:10px;">';
-            h += '<div style="color:' + color + ';font-weight:700;margin-bottom:4px;">' + title + ' (' + items.length + ')</div>';
-            h += '<textarea readonly style="width:100%;box-sizing:border-box;height:70px;padding:6px;margin-bottom:4px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.3);border-radius:8px;font-family:monospace;font-size:10px;">' + (items.join("\n")) + '</textarea>';
-            h += '<button class="jjopg-field-copy" style="width:100%;padding:6px;background:#222;color:' + color + ';font-weight:700;border:1px solid ' + color + ';border-radius:6px;cursor:pointer;">📋 COPIAR</button>';
-            h += '</div>';
-            return h;
-        }
-
-        // sobra da pool (quem não foi usado nesta rodada) — no mesmo formato "Nome F S" da caixinha 2,
-        // pra poder colar direto numa 2ª rodada (ex: distribuir os alvos semi-full com o que sobrou dos fulls)
-        const leftoverItems = [];
-        Object.keys(lastRemainingPool).forEach(function (p) {
-            const r = lastRemainingPool[p];
-            if (r.full > 0 || r.semi > 0) leftoverItems.push(p + " " + r.full + " F " + r.semi + " S");
-        });
-        const leftoverText = leftoverItems.join("\n");
-
-        let html = "";
-        html += field("⚔️ Alvos Fulls", fullItems, "#7fb8e0");
-        html += field("🌓 Alvos Semi-fulls", semiItems, "#b08cd6");
-        html += field("🎁 Alvos Bônus", bonusItems, "#e0b84a");
-        html += field("♻️ Sobra da pool (não usada nesta rodada)", leftoverItems, "#8c8");
-        html += '<button id="jjopg-dist-use-leftover" style="width:100%;padding:8px;margin-bottom:4px;background:#222;color:#8c8;font-weight:700;border:1px solid #8c8;border-radius:8px;cursor:pointer;">↻ USAR SOBRA COMO NOVA POOL (pra 2ª rodada)</button>';
-        box.innerHTML = html;
-
-        const textareas = box.querySelectorAll("textarea");
-        box.querySelectorAll(".jjopg-field-copy").forEach(function (btn, i) {
-            btn.onclick = function () { copyText(this, textareas[i].value); };
-        });
-        document.getElementById("jjopg-dist-use-leftover").onclick = function () {
-            document.getElementById("jjopg-dist-pool-box").value = leftoverText;
-            document.getElementById("jjopg-dist-status").textContent = "Pool substituída pela sobra (" + leftoverItems.length + " jogador(es)). Troque a caixinha de alvos pelos próximos alvos e gere a distribuição de novo.";
-        };
-    }
+        const leftoverItems2 = leftoverItemsFrom(remaining2);
+        let html2 = buildAssignmentFieldsHtml(result2.assignmentsList);
+        html2 += fieldHtml("♻️ Sobra desta rodada", leftoverItems2, "#8c8");
+        box.innerHTML = html2;
+        wireFieldCopyButtons(box);
+    };
 
     // ================= SEÇÃO 7: GERADOR DE MENSAGEM DA OPERAÇÃO =================
     // MODELO PADRÃO FIXO — só data e horário mudam. 100% manual: nenhuma caixa é preenchida
