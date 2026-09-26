@@ -674,14 +674,44 @@ javascript:(function () {
 
     function renderDistResultsByField(box) {
         // separa os resultados em 3 campos: Fulls, Semi-fulls, Bônus (NT continua manual na Etapa 4)
-        const fullItems = [], semiItems = [];
+        // Agrupa comandos repetidos do MESMO jogador pro MESMO alvo numa linha só (ex: "Ana → 500|500 x3"),
+        // quebrando em várias linhas quando passar de 5 (ex: 12 vira "x5", "x5", "x2") — pra sobrar menos linha pra separar.
+        const fullEntries = [], semiEntries = [];
+        const ownerByCoord = {};
         assignments.forEach(function (a) {
+            ownerByCoord[a.target.coord] = a.target.owner;
             if (a.selfSufficient) return;
             a.fulls.forEach(function (f) {
-                const label = f.player + " → " + a.target.coord + (a.target.owner ? " (" + a.target.owner + ")" : "");
-                if (f.type === "SEMI") semiItems.push(label); else fullItems.push(label);
+                const rec = { player: f.player, target: a.target.coord };
+                if (f.type === "SEMI") semiEntries.push(rec); else fullEntries.push(rec);
             });
         });
+
+        function groupCapped(entries, capPerLine) {
+            const counts = {};
+            const order = [];
+            entries.forEach(function (e) {
+                const key = e.player + "||" + e.target;
+                if (!(key in counts)) { counts[key] = 0; order.push(key); }
+                counts[key]++;
+            });
+            const lines = [];
+            order.forEach(function (key) {
+                const parts = key.split("||");
+                const player = parts[0], target = parts[1];
+                const owner = ownerByCoord[target];
+                let remaining = counts[key];
+                while (remaining > 0) {
+                    const take = Math.min(capPerLine, remaining);
+                    lines.push(player + " → " + target + (owner ? " (" + owner + ")" : "") + (take > 1 ? " x" + take : ""));
+                    remaining -= take;
+                }
+            });
+            return lines;
+        }
+
+        const fullItems = groupCapped(fullEntries, 5);
+        const semiItems = groupCapped(semiEntries, 5);
         const bonusItems = assignments.filter(function (a) { return a.target.bonus; })
             .map(function (a) { return a.target.coord + " - " + (a.target.owner || "?"); });
 
