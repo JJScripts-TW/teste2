@@ -82,20 +82,22 @@ javascript:(function () {
             </details>
 
             <details id="sec5" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
-                <summary style="cursor:pointer;color:${gold};font-weight:700;">3️⃣ Organizar atribuições (sem cálculo automático)</summary>
+                <summary style="cursor:pointer;color:${gold};font-weight:700;">3️⃣ Distribuir por quantidade disponível</summary>
                 <div style="margin-top:8px;">
-                    <div style="color:#999;margin-bottom:6px;">Sem proximidade automática — você já decide manualmente quem apoia quem (no seu OneNote, por exemplo) e só cola aqui pra organizar em 4 campos separados e copiáveis.</div>
+                    <div style="color:#999;margin-bottom:6px;">Sem cálculo de distância/mapa — só aloca por quantidade disponível de cada jogador (na ordem que aparecem na caixinha 2) até cobrir o pedido de cada alvo.</div>
 
-                    <label style="display:block;color:#bbb;margin-bottom:3px;">🗂️ Atribuições decididas</label>
-                    <div style="color:#888;margin-bottom:3px;">Uma linha por apoio: <code>coord (jogador) → alvo NT/FULL/SEMI</code>. Alvo bônus (sem apoio): <code>coord - jogador BONUS</code></div>
-                    <textarea id="jjopg-dist-assign-box" placeholder="500|501 (Pedro) → 480|480 NT&#10;502|503 (Pedro) → 480|480 FULL&#10;498|500 (Maria) → 480|480 SEMI&#10;486|636 - Arken BONUS" style="width:100%;box-sizing:border-box;height:130px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+                    <label style="display:block;color:#bbb;margin-bottom:3px;">🎯 Alvos que precisam de distribuição</label>
+                    <div style="color:#888;margin-bottom:3px;">Formato: <code>Nome:N coord coord coord</code> (":N" = quantos apoios cada alvo do Nome precisa; sem ":N" usa o padrão abaixo). Bônus: escreva "Bonus" em qualquer parte da linha — tudo depois vira alvo bônus (nunca precisa de apoio).</div>
+                    <textarea id="jjopg-dist-targets-box" placeholder="João:3 500|500 501|502 502|503&#10;Maria:0 510|498&#10;Pedro:2 520|500 - Bonus: 521|501" style="width:100%;box-sizing:border-box;height:100px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
 
-                    <label style="display:block;color:#bbb;margin-bottom:3px;">📋 Cota de F/S por jogador (opcional — só avisa, não bloqueia)</label>
-                    <div style="color:#888;margin-bottom:3px;">Cola direto do jogo: <code>Nome &lt;F&gt; F &lt;S&gt; S</code> (ex: <code>Arken 105 F 11 S</code>). Se preenchido, avisa se você atribuiu mais FULL/SEMI de algum jogador do que a cota dele.</div>
-                    <textarea id="jjopg-dist-quota-box" placeholder="Arken 105 F 11 S&#10;Boldin 29 F 3 S" style="width:100%;box-sizing:border-box;height:70px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+                    <label style="display:block;color:#bbb;margin-bottom:3px;">🛡️ Fulls/semis disponíveis (por jogador)</label>
+                    <div style="color:#888;margin-bottom:3px;">Cola direto do jogo: <code>Nome &lt;F&gt; F &lt;S&gt; S</code> (ex: <code>Pedro 10 F 5 S</code>). Sem coordenada — é só a quantidade disponível de cada um.</div>
+                    <textarea id="jjopg-dist-pool-box" placeholder="Pedro 10 F 5 S&#10;Maria 6 F 2 S" style="width:100%;box-sizing:border-box;height:90px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
 
-                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:10px;color:#bbb;"><input id="jjopg-skip-bonus" type="checkbox"> Ocultar alvos 🎁 bônus desta organização</label>
-                    <button id="jjopg-distribute" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🗂️ ORGANIZAR ATRIBUIÇÕES</button>
+                    <label style="display:block;color:#bbb;margin-bottom:3px;">Mín. apoios por alvo (padrão, quando não tiver ":N")</label>
+                    <input id="jjopg-minfulls" type="number" value="1" min="1" style="width:100%;box-sizing:border-box;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;">
+                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:10px;color:#bbb;"><input id="jjopg-skip-bonus" type="checkbox"> Ocultar alvos 🎁 bônus desta distribuição</label>
+                    <button id="jjopg-distribute" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🎯 GERAR DISTRIBUIÇÃO</button>
                     <div id="jjopg-dist-status" style="color:#999;margin-bottom:6px;line-height:15px;"></div>
                     <div id="jjopg-dist-results"></div>
                 </div>
@@ -609,117 +611,75 @@ javascript:(function () {
         document.getElementById("jjopg-names-status").textContent = "Nomes removidos do mapa e da lista de alvos.";
     };
 
-    // ================= SEÇÃO 5: ORGANIZAR ATRIBUIÇÕES (SEM CÁLCULO AUTOMÁTICO) =================
-    // Seção independente: sem proximidade/distância. Você já decide manualmente quem apoia quem
-    // (fora daqui, ex: no OneNote) e só cola o resultado pra separar em 4 campos copiáveis.
-    // Formatos aceitos, um por linha:
-    //   "coord (jogador) → alvo NT"    -> nobre saindo de "coord" pra atacar "alvo"
-    //   "coord (jogador) → alvo FULL"  -> apoio full saindo de "coord" pra "alvo"
-    //   "coord (jogador) → alvo SEMI"  -> apoio semi-full saindo de "coord" pra "alvo"
-    //   (aceita "->" ou "-" no lugar de "→")
-    //   "alvo - jogador BONUS"          -> alvo bônus, sem apoio nenhum
-    function parseManualAssignments(raw) {
-        const lines = raw.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
-        const entries = [], bonusTargets = [];
-        lines.forEach(function (line) {
-            const mAssign = line.match(/^(\d{1,3}\|\d{1,3})\s*\(([^)]*)\)\s*(?:→|->|-)+\s*(\d{1,3}\|\d{1,3})\s*[\[:]?\s*(NT|FULL|SEMI)\]?\s*$/i);
-            if (mAssign) {
-                const supportPc = parseCoord(mAssign[1]);
-                const targetPc = parseCoord(mAssign[3]);
-                if (supportPc && targetPc) {
-                    entries.push({
-                        coord: supportPc.coord, x: supportPc.x, y: supportPc.y,
-                        player: mAssign[2].trim(),
-                        targetCoord: targetPc.coord, targetX: targetPc.x, targetY: targetPc.y,
-                        role: mAssign[4].toUpperCase()
-                    });
-                }
-                return;
-            }
-            const mBonus = line.match(/^(\d{1,3}\|\d{1,3})\s*-\s*(.+?)\s*bonus\s*$/i);
-            if (mBonus) {
-                const pc = parseCoord(mBonus[1]);
-                if (pc) bonusTargets.push({ coord: pc.coord, x: pc.x, y: pc.y, owner: mBonus[2].trim() });
-            }
-        });
-        return { entries: entries, bonusTargets: bonusTargets };
-    }
-
+    // ================= SEÇÃO 5: DISTRIBUIÇÃO POR QUANTIDADE DISPONÍVEL =================
+    // Sem cálculo de distância/mapa. Caixinha 1 = alvos (reusa o mesmo formato "Nome:N coord..." da
+    // Etapa 2, via parseNamedList). Caixinha 2 = quantidade de full/semi disponível por jogador (reusa
+    // o formato "Nome F S" via parsePlayerQuota). O script só desconta da quantidade disponível, na
+    // ordem que os jogadores aparecem na caixinha 2, até cobrir o pedido de cada alvo.
     document.getElementById("jjopg-distribute").onclick = function () {
         const status = document.getElementById("jjopg-dist-status");
         const box = document.getElementById("jjopg-dist-results");
         box.innerHTML = "";
+        const minFulls = Math.max(1, parseInt(document.getElementById("jjopg-minfulls").value, 10) || 1);
         const skipBonus = document.getElementById("jjopg-skip-bonus").checked;
 
-        const parsed = parseManualAssignments(document.getElementById("jjopg-dist-assign-box").value);
-        if (!parsed.entries.length && !parsed.bonusTargets.length) {
-            status.textContent = "Cole ao menos uma atribuição (coord (jogador) → alvo NT/FULL/SEMI) ou alvo bônus (coord - jogador BONUS).";
-            return;
-        }
+        const targetsParsed = parseNamedList(document.getElementById("jjopg-dist-targets-box").value);
+        const poolParsed = parsePlayerQuota(document.getElementById("jjopg-dist-pool-box").value, knownPlayerNames());
 
-        // agrupa as atribuições por alvo, reconstruindo "assignments" (mesma estrutura usada nas Etapas 4/5/6)
-        const byTarget = {};
-        parsed.entries.forEach(function (e) {
-            if (!byTarget[e.targetCoord]) {
-                byTarget[e.targetCoord] = { target: { coord: e.targetCoord, x: e.targetX, y: e.targetY, owner: "", bonus: false }, fulls: [] };
+        if (!targetsParsed.length) { status.textContent = "Preencha a caixinha de alvos (Nome:N coord coord ...)."; return; }
+        if (!poolParsed.length) { status.textContent = "Preencha a caixinha de fulls/semis disponíveis (Nome F S)."; return; }
+
+        const activeTargets = skipBonus ? targetsParsed.filter(function (t) { return !t.bonus; }) : targetsParsed;
+        if (!activeTargets.length) { status.textContent = "Todos os alvos são bônus e estão ocultos — desmarque a opção ou adicione alvos normais."; return; }
+
+        const remaining = {};
+        const playerOrder = [];
+        poolParsed.forEach(function (q) {
+            remaining[q.player] = { full: q.fullQuota, semi: q.semiQuota };
+            playerOrder.push(q.player);
+        });
+
+        assignments = [];
+        activeTargets.forEach(function (t) {
+            // alvos bônus nunca precisam de apoio, não importa o número marcado
+            const need = t.bonus ? 0 : ((t.need !== undefined && t.need !== null) ? t.need : minFulls);
+            const targetObj = { coord: t.coord, x: t.x, y: t.y, owner: t.name, bonus: !!t.bonus };
+
+            if (need <= 0) {
+                assignments.push({ target: targetObj, fulls: [], selfSufficient: true });
+                return;
             }
-            byTarget[e.targetCoord].fulls.push({
-                coord: e.coord, x: e.x, y: e.y, player: e.player,
-                role: e.role === "NT" ? "NT (nobre)" : "Full apoio",
-                type: e.role // "NT" | "FULL" | "SEMI"
+
+            const fulls = [];
+            let stillNeeded = need;
+            playerOrder.forEach(function (p) {
+                const avail = remaining[p];
+                while (stillNeeded > 0 && avail.full > 0) { avail.full--; stillNeeded--; fulls.push({ player: p, type: "FULL", role: "Full apoio" }); }
             });
+            playerOrder.forEach(function (p) {
+                const avail = remaining[p];
+                while (stillNeeded > 0 && avail.semi > 0) { avail.semi--; stillNeeded--; fulls.push({ player: p, type: "SEMI", role: "Semi apoio" }); }
+            });
+            assignments.push({ target: targetObj, fulls: fulls, selfSufficient: false, needWanted: need });
         });
-        assignments = Object.keys(byTarget).map(function (k) {
-            const a = byTarget[k]; a.selfSufficient = false; return a;
-        });
 
-        if (!skipBonus) {
-            parsed.bonusTargets.forEach(function (b) {
-                assignments.push({ target: { coord: b.coord, x: b.x, y: b.y, owner: b.owner, bonus: true }, fulls: [], selfSufficient: true });
-            });
-        }
-
-        // cota de F/S por jogador (opcional) — só avisa, não bloqueia nem remove nada
-        let quotaNote = "";
-        const quotaRaw = document.getElementById("jjopg-dist-quota-box").value;
-        if (quotaRaw.trim()) {
-            const quotas = parsePlayerQuota(quotaRaw, knownPlayerNames());
-            const used = {};
-            parsed.entries.forEach(function (e) {
-                if (e.role === "FULL" || e.role === "SEMI") {
-                    const key = e.player + "|" + e.role;
-                    used[key] = (used[key] || 0) + 1;
-                }
-            });
-            const warnings = [];
-            quotas.forEach(function (q) {
-                const usedFull = used[q.player + "|FULL"] || 0;
-                const usedSemi = used[q.player + "|SEMI"] || 0;
-                if (usedFull > q.fullQuota) warnings.push(q.player + ": " + usedFull + " FULL usados (cota " + q.fullQuota + ")");
-                if (usedSemi > q.semiQuota) warnings.push(q.player + ": " + usedSemi + " SEMI usados (cota " + q.semiQuota + ")");
-            });
-            if (warnings.length) quotaNote = " ⚠️ Acima da cota: " + warnings.join(" | ");
-        }
-
-        const skippedBonus = skipBonus ? parsed.bonusTargets.length : 0;
-        status.textContent = "Organizado " + parsed.entries.length + " apoio(s) em " + Object.keys(byTarget).length + " alvo(s)" +
-            (parsed.bonusTargets.length ? " + " + parsed.bonusTargets.length + " alvo(s) bônus" : "") +
-            (skippedBonus ? " (" + skippedBonus + " bônus ocultado(s))" : "") +
-            quotaNote;
+        const incompletos = assignments.filter(function (a) { return !a.selfSufficient && a.fulls.length < a.needWanted; }).length;
+        const skipped = targetsParsed.length - activeTargets.length;
+        status.textContent = "Distribuição gerada para " + assignments.length + " alvo(s)." +
+            (incompletos ? " (" + incompletos + " sem apoio suficiente na pool)" : "") +
+            (skipped ? " (" + skipped + " alvo(s) bônus ocultado(s))" : "");
 
         renderDistResultsByField(box);
     };
 
     function renderDistResultsByField(box) {
-        // separa os resultados em 4 campos: NT, Fulls, Semi-fulls, Bônus
-        const ntItems = [], fullItems = [], semiItems = [];
+        // separa os resultados em 3 campos: Fulls, Semi-fulls, Bônus (NT continua manual na Etapa 4)
+        const fullItems = [], semiItems = [];
         assignments.forEach(function (a) {
             if (a.selfSufficient) return;
             a.fulls.forEach(function (f) {
-                const label = f.coord + " (" + f.player + ") → " + a.target.coord;
-                if (f.type === "NT") ntItems.push(label);
-                else if (f.type === "SEMI") semiItems.push(label);
-                else fullItems.push(label);
+                const label = f.player + " → " + a.target.coord + (a.target.owner ? " (" + a.target.owner + ")" : "");
+                if (f.type === "SEMI") semiItems.push(label); else fullItems.push(label);
             });
         });
         const bonusItems = assignments.filter(function (a) { return a.target.bonus; })
@@ -735,7 +695,6 @@ javascript:(function () {
         }
 
         let html = "";
-        html += field("👑 Alvos NT", ntItems, gold);
         html += field("⚔️ Alvos Fulls", fullItems, "#7fb8e0");
         html += field("🌓 Alvos Semi-fulls", semiItems, "#b08cd6");
         html += field("🎁 Alvos Bônus", bonusItems, "#e0b84a");
@@ -839,7 +798,7 @@ javascript:(function () {
                 return;
             }
             a.fulls.forEach(function (f) {
-                lines.push([f.coord, a.target.coord, a.target.bonus ? "SIM" : "", f.role, f.player].join("\t"));
+                lines.push([f.coord || "-", a.target.coord, a.target.bonus ? "SIM" : "", f.role, f.player].join("\t"));
             });
         });
         return lines.join("\n");
