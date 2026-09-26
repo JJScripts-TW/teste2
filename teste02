@@ -616,6 +616,12 @@ javascript:(function () {
     // Etapa 2, via parseNamedList). Caixinha 2 = quantidade de full/semi disponível por jogador (reusa
     // o formato "Nome F S" via parsePlayerQuota). O script só desconta da quantidade disponível, na
     // ordem que os jogadores aparecem na caixinha 2, até cobrir o pedido de cada alvo.
+    // Fluxo em duas rodadas (ex: 1ª pros alvos FULL, 2ª pros alvos SEMI-FULL com a sobra da 1ª):
+    // depois de distribuir, o resultado mostra a "sobra" (quem não foi usado) já no formato "Nome F S" —
+    // clique em "usar sobra como nova pool" pra jogar direto na caixinha 2, troque a caixinha 1 pelos
+    // próximos alvos e gere a distribuição de novo.
+    let lastRemainingPool = {};
+
     document.getElementById("jjopg-distribute").onclick = function () {
         const status = document.getElementById("jjopg-dist-status");
         const box = document.getElementById("jjopg-dist-results");
@@ -662,6 +668,8 @@ javascript:(function () {
             });
             assignments.push({ target: targetObj, fulls: fulls, selfSufficient: false, needWanted: need });
         });
+
+        lastRemainingPool = remaining;
 
         const incompletos = assignments.filter(function (a) { return !a.selfSufficient && a.fulls.length < a.needWanted; }).length;
         const skipped = targetsParsed.length - activeTargets.length;
@@ -724,16 +732,31 @@ javascript:(function () {
             return h;
         }
 
+        // sobra da pool (quem não foi usado nesta rodada) — no mesmo formato "Nome F S" da caixinha 2,
+        // pra poder colar direto numa 2ª rodada (ex: distribuir os alvos semi-full com o que sobrou dos fulls)
+        const leftoverItems = [];
+        Object.keys(lastRemainingPool).forEach(function (p) {
+            const r = lastRemainingPool[p];
+            if (r.full > 0 || r.semi > 0) leftoverItems.push(p + " " + r.full + " F " + r.semi + " S");
+        });
+        const leftoverText = leftoverItems.join("\n");
+
         let html = "";
         html += field("⚔️ Alvos Fulls", fullItems, "#7fb8e0");
         html += field("🌓 Alvos Semi-fulls", semiItems, "#b08cd6");
         html += field("🎁 Alvos Bônus", bonusItems, "#e0b84a");
+        html += field("♻️ Sobra da pool (não usada nesta rodada)", leftoverItems, "#8c8");
+        html += '<button id="jjopg-dist-use-leftover" style="width:100%;padding:8px;margin-bottom:4px;background:#222;color:#8c8;font-weight:700;border:1px solid #8c8;border-radius:8px;cursor:pointer;">↻ USAR SOBRA COMO NOVA POOL (pra 2ª rodada)</button>';
         box.innerHTML = html;
 
         const textareas = box.querySelectorAll("textarea");
         box.querySelectorAll(".jjopg-field-copy").forEach(function (btn, i) {
             btn.onclick = function () { copyText(this, textareas[i].value); };
         });
+        document.getElementById("jjopg-dist-use-leftover").onclick = function () {
+            document.getElementById("jjopg-dist-pool-box").value = leftoverText;
+            document.getElementById("jjopg-dist-status").textContent = "Pool substituída pela sobra (" + leftoverItems.length + " jogador(es)). Troque a caixinha de alvos pelos próximos alvos e gere a distribuição de novo.";
+        };
     }
 
     // ================= SEÇÃO 7: GERADOR DE MENSAGEM DA OPERAÇÃO =================
