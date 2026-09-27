@@ -1155,7 +1155,7 @@ javascript:(function () {
                 state.other.forEach(function (v) {
                     const p = worldToScreen(v.x, v.y);
                     if (p[0] < -5 || p[0] > canvas.width + 5 || p[1] < -5 || p[1] > canvas.height + 5) return;
-                    ctx.fillRect(p[0], p[1], dotOther, dotOther);
+                    ctx.fillRect(p[0] - dotOther / 2, p[1] - dotOther / 2, dotOther, dotOther);
                 });
 
                 const dotMid = Math.max(2, state.scale * 1.2);
