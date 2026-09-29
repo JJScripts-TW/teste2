@@ -1,7 +1,16 @@
 javascript:(function () {
 
     const old = document.getElementById("jj-opgen");
-    if (old) { old.remove(); return; }
+    if (old) {
+        old.remove();
+        // se o modo coleta ficou ligado (fechou sem clicar em LIMPAR/desativar), devolve o clique do
+        // mapa pro jogo, senão o mapa fica sem responder a clique normal depois que o painel some.
+        if (typeof TWMap !== "undefined" && TWMap.map && window.__jjopgOrigHandleClick) {
+            TWMap.map._handleClick = window.__jjopgOrigHandleClick;
+            window.__jjopgOrigHandleClick = null;
+        }
+        return;
+    }
 
     if (typeof game_data === "undefined" || !game_data.village) {
         alert("Abra qualquer página do jogo (com uma aldeia selecionada) antes de usar este script.");
@@ -183,6 +192,7 @@ javascript:(function () {
     document.getElementById("jjopg-x").onclick = function () {
         if (typeof namedLabelInterval !== "undefined" && namedLabelInterval) clearInterval(namedLabelInterval);
         document.querySelectorAll('[id^="jj-oplabel-"]').forEach(function (el) { el.remove(); });
+        if (typeof stopCollectMode === "function") stopCollectMode(); // devolve o clique do mapa pro jogo
         panel.remove();
     };
 
@@ -622,32 +632,82 @@ javascript:(function () {
     // (marcando-a de amarelo transparente) sem precisar digitar nada. Serve pra aproveitar aldeias que
     // você já vê marcadas/abertas no mapa (ex: sem comando ainda) e juntar só essas coordenadas novas,
     // pra depois colar no campo de nome ali em cima. Clicar de novo na mesma aldeia desmarca.
+    //
+    // Usa a MESMA técnica do "Map Coord Picker" (script aprovado, de RedAlert/twscripts): troca
+    // TWMap.map._handleClick pelo nosso, que lê a coordenada certa direto de this.coordByEvent(e) —
+    // é o próprio método que o jogo usa internamente pro clique no mapa, então funciona clicando em
+    // QUALQUER ponto do mapa (aldeia bárbara, aldeia com dono, etc.), sem precisar acertar um elemento
+    // específico. A versão anterior tentava adivinhar por geometria e não funcionava direito.
     let collectMode = false;
     let collectedVillages = []; // {id, x, y, coord}
 
-    function findVillageKeyById(vid) {
-        if (typeof TWMap === "undefined" || !TWMap.villages) return null;
-        for (const key in TWMap.villages) {
-            const v = TWMap.villages[key];
-            if (v && String(v.id) === String(vid)) return key;
-        }
-        return null;
+    // guarda o handler original do jogo numa variável GLOBAL (fora do closure deste script), pra
+    // conseguir restaurar mesmo se o painel for fechado/reaberto sem desligar o modo coleta antes.
+    if (typeof TWMap !== "undefined" && TWMap.map && window.__jjopgOrigHandleClick) {
+        TWMap.map._handleClick = window.__jjopgOrigHandleClick;
+        window.__jjopgOrigHandleClick = null;
     }
 
     function updateCollectStatus() {
         document.getElementById("jjopg-collect-copy").textContent = "📋 COPIAR COORDENADAS COLETADAS (" + collectedVillages.length + ")";
         const status = document.getElementById("jjopg-collect-status");
         if (collectMode) {
-            status.textContent = "🟡 Modo coleta ATIVO — clique nas aldeias do mapa real. " + collectedVillages.length + " coletada(s) até agora.";
+            status.textContent = "🟡 Modo coleta ATIVO — clique em qualquer ponto do mapa real. " + collectedVillages.length + " coletada(s) até agora.";
         } else {
             status.textContent = collectedVillages.length ? collectedVillages.length + " coordenada(s) coletada(s)." : "Modo coleta desligado.";
         }
     }
 
+    function stopCollectMode() {
+        collectMode = false;
+        if (typeof TWMap !== "undefined" && TWMap.map && window.__jjopgOrigHandleClick) {
+            TWMap.map._handleClick = window.__jjopgOrigHandleClick;
+            window.__jjopgOrigHandleClick = null;
+        }
+        const btn = document.getElementById("jjopg-collect-toggle");
+        if (btn) { btn.textContent = "🖱️ ATIVAR MODO COLETA NO MAPA"; btn.style.background = "#222"; }
+    }
+
     document.getElementById("jjopg-collect-toggle").onclick = function () {
+        if (typeof TWMap === "undefined" || !TWMap.map || typeof TWMap.map.coordByEvent !== "function") {
+            document.getElementById("jjopg-collect-status").textContent = "Abra o mapa do jogo (screen=map) pra usar o modo coleta.";
+            return;
+        }
+
         collectMode = !collectMode;
         this.textContent = collectMode ? "🟡 MODO COLETA ATIVO (clique de novo pra desligar)" : "🖱️ ATIVAR MODO COLETA NO MAPA";
         this.style.background = collectMode ? "#3a3410" : "#222";
+
+        if (collectMode) {
+            if (!window.__jjopgOrigHandleClick) window.__jjopgOrigHandleClick = TWMap.map._handleClick;
+            TWMap.map._handleClick = function (e) {
+                const pos = this.coordByEvent(e);
+                if (!pos) return false;
+                const x = pos[0], y = pos[1];
+                const coord = x + "|" + y;
+                const village = TWMap.villages[x * 1000 + y];
+
+                const idx = collectedVillages.findIndex(function (c) { return c.coord === coord; });
+                if (idx >= 0) {
+                    collectedVillages.splice(idx, 1);
+                    if (village && village.id) {
+                        const el = document.getElementById("map_village_" + village.id);
+                        if (el) el.style.filter = "";
+                    }
+                } else {
+                    collectedVillages.push({ id: village && village.id ? String(village.id) : null, x: x, y: y, coord: coord });
+                    if (village && village.id) {
+                        const el = document.getElementById("map_village_" + village.id);
+                        if (el) el.style.filter = "brightness(190%) sepia(1) saturate(8) hue-rotate(-10deg) opacity(85%)";
+                    }
+                }
+                updateCollectStatus();
+                return false;
+            };
+        } else if (window.__jjopgOrigHandleClick) {
+            TWMap.map._handleClick = window.__jjopgOrigHandleClick;
+            window.__jjopgOrigHandleClick = null;
+        }
         updateCollectStatus();
     };
 
@@ -659,39 +719,13 @@ javascript:(function () {
 
     document.getElementById("jjopg-collect-clear").onclick = function () {
         collectedVillages.forEach(function (c) {
+            if (!c.id) return;
             const el = document.getElementById("map_village_" + c.id);
             if (el) el.style.filter = "";
         });
         collectedVillages = [];
         updateCollectStatus();
     };
-
-    // clique em captura, pra pegar o clique antes do próprio jogo abrir o popup padrão da aldeia
-    document.addEventListener("click", function (e) {
-        if (!collectMode) return;
-        const el = e.target.closest && e.target.closest('[id^="map_village_"]');
-        if (!el) return;
-        e.preventDefault();
-        e.stopPropagation();
-
-        const vid = el.id.replace("map_village_", "");
-        const key = findVillageKeyById(vid);
-        if (key === null) return;
-        const keyNum = parseInt(key, 10);
-        const y = keyNum % 1000;
-        const x = (keyNum - y) / 1000;
-        const coord = x + "|" + y;
-
-        const idx = collectedVillages.findIndex(function (c) { return c.coord === coord; });
-        if (idx >= 0) {
-            collectedVillages.splice(idx, 1);
-            el.style.filter = "";
-        } else {
-            collectedVillages.push({ id: vid, x: x, y: y, coord: coord });
-            el.style.filter = "brightness(190%) sepia(1) saturate(8) hue-rotate(-10deg) opacity(85%)";
-        }
-        updateCollectStatus();
-    }, true);
 
     // ================= SEÇÃO 5: DISTRIBUIÇÃO POR QUANTIDADE DISPONÍVEL (2 RODADAS) =================
     // Sem cálculo de distância/mapa. Caixinha de alvos = "Nome:N coord..." (via parseNamedList, aceita
@@ -1278,48 +1312,50 @@ javascript:(function () {
                 ctx.fillStyle = "#08090c";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                const dotOther = Math.max(1, state.scale * 0.8);
+                // todo mundo usa EXATAMENTE o mesmo tamanho — uma aldeia = um quadradinho de 1 tile de
+                // largura na escala atual (nem mais nem menos). Tamanhos diferentes por grupo faziam os
+                // quadrados "importantes" (tribo/eu/alvo) ficarem maiores que 1 tile e invadirem o espaço
+                // das aldeias vizinhas, dando a impressão de sobreposição/desalinhamento com o mapa real.
+                const dot = Math.max(1, state.scale);
+
                 ctx.fillStyle = MAPCOLOR_OTHER;
                 state.other.forEach(function (v) {
                     const p = worldToScreen(v.x, v.y);
                     if (p[0] < -5 || p[0] > canvas.width + 5 || p[1] < -5 || p[1] > canvas.height + 5) return;
-                    ctx.fillRect(p[0] - dotOther / 2, p[1] - dotOther / 2, dotOther, dotOther);
+                    ctx.fillRect(p[0] - dot / 2, p[1] - dot / 2, dot, dot);
                 });
 
-                const dotMid = Math.max(2, state.scale * 1.2);
                 function drawGroup(list, color) {
                     ctx.fillStyle = color;
                     list.forEach(function (v) {
                         const p = worldToScreen(v.x, v.y);
                         if (p[0] < -5 || p[0] > canvas.width + 5 || p[1] < -5 || p[1] > canvas.height + 5) return;
-                        ctx.fillRect(p[0] - dotMid / 2, p[1] - dotMid / 2, dotMid, dotMid);
+                        ctx.fillRect(p[0] - dot / 2, p[1] - dot / 2, dot, dot);
                     });
                 }
                 drawGroup(state.pna, MAPCOLOR_PNA);
                 drawGroup(state.ally, MAPCOLOR_ALLY);
                 drawGroup(state.enemy, MAPCOLOR_ENEMY);
 
-                const dotBig = Math.max(2.5, state.scale * 1.6);
                 ctx.fillStyle = MAPCOLOR_TRIBE;
                 state.tribe.forEach(function (v) {
                     const p = worldToScreen(v.x, v.y);
-                    ctx.fillRect(p[0] - dotBig / 2, p[1] - dotBig / 2, dotBig, dotBig);
+                    ctx.fillRect(p[0] - dot / 2, p[1] - dot / 2, dot, dot);
                 });
 
                 ctx.fillStyle = MAPCOLOR_ME;
                 state.mine.forEach(function (v) {
                     const p = worldToScreen(v.x, v.y);
-                    ctx.fillRect(p[0] - dotBig / 2, p[1] - dotBig / 2, dotBig, dotBig);
+                    ctx.fillRect(p[0] - dot / 2, p[1] - dot / 2, dot, dot);
                 });
 
-                // alvos da OP por cima de tudo: pinta o próprio quadradinho da aldeia (mesmo tamanho/âncora
-                // dos outros grupos), em vez de um círculo separado que ficava flutuando por cima.
-                const dotTarget = Math.max(2.5, state.scale * 1.6);
+                // alvos da OP por cima de tudo: mesmo tamanho exato de 1 tile, só pinta por cima do
+                // quadradinho que já existia ali, sem transbordar pras aldeias vizinhas.
                 state.targets.forEach(function (t) {
                     const p = worldToScreen(t.x, t.y);
                     if (p[0] < -10 || p[0] > canvas.width + 10 || p[1] < -10 || p[1] > canvas.height + 10) return;
                     ctx.fillStyle = t.kind === "fake" ? MAPCOLOR_FAKE : (t.kind === "bonus" ? MAPCOLOR_BONUS : MAPCOLOR_NT);
-                    ctx.fillRect(p[0] - dotTarget / 2, p[1] - dotTarget / 2, dotTarget, dotTarget);
+                    ctx.fillRect(p[0] - dot / 2, p[1] - dot / 2, dot, dot);
                 });
             });
         }
