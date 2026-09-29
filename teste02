@@ -62,22 +62,24 @@ javascript:(function () {
             </details>
 
             <details id="sec4" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
-                <summary style="cursor:pointer;color:${gold};font-weight:700;">2️⃣ Colar coordenadas e visualizar no mapa</summary>
+                <summary style="cursor:pointer;color:${gold};font-weight:700;">2️⃣ Colar coordenadas com nome e visualizar no mapa</summary>
                 <div style="margin-top:8px;">
-                    <textarea id="jjopg-paste" placeholder="Cole coordenadas, ex: 500|500 501|502 ..." style="width:100%;box-sizing:border-box;height:60px;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;"></textarea>
-                    <button id="jjopg-paste-add" style="width:100%;padding:9px;margin-bottom:6px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">➕ ADICIONAR AOS ALVOS</button>
-                    <button id="jjopg-paste-mark" style="width:100%;padding:8px;margin-bottom:8px;background:#222;color:${gold};font-weight:700;border:1px solid ${gold};border-radius:8px;cursor:pointer;">📍 DESTACAR NO MAPA REAL (se estiver no mapa)</button>
-                    <div id="jjopg-paste-status" style="color:#999;line-height:15px;margin-bottom:8px;"></div>
-                    <div id="jjopg-targets-box" style="margin-bottom:10px;"></div>
+                    <div style="color:#999;margin-bottom:6px;">Uma linha por jogador: nome + coordenadas. Coloque ":N" logo depois do NOME pra aplicar esse número de fulls de apoio em todas as coordenadas da linha de uma vez (ex: "João:3 500|500 501|502 502|503" → todas precisam de 3). Se quiser um valor diferente só numa coordenada específica, coloque ":N" nela também (tem prioridade sobre o do nome). ":0" = não precisa de ajuda. Sem ":N" nenhum, usa o padrão da Etapa 3.</div>
+                    <textarea id="jjopg-names" placeholder="João:3 500|500 501|502 502|503&#10;Maria:0 510|498 511|500&#10;Pedro:3 520|500:0 521|501" style="width:100%;box-sizing:border-box;height:90px;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;"></textarea>
+                    <button id="jjopg-names-mark" style="width:100%;padding:8px;margin-bottom:6px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🏷️ MARCAR NO MAPA COM NOMES</button>
+                    <button id="jjopg-names-clear" style="width:100%;padding:7px;background:#2a1414;color:#e88;font-weight:700;border:1px solid #a55;border-radius:8px;cursor:pointer;">🗑️ LIMPAR NOMES DO MAPA</button>
+                    <div id="jjopg-names-status" style="color:#999;line-height:15px;margin-top:6px;margin-bottom:10px;"></div>
 
-                    <div style="border-top:1px dashed rgba(216,170,69,.3);padding-top:8px;">
-                        <div style="color:${gold};font-weight:700;margin-bottom:4px;">🏷️ Marcar com nome de quem ataca</div>
-                        <div style="color:#999;margin-bottom:6px;">Uma linha por jogador: nome + coordenadas. Coloque ":N" logo depois do NOME pra aplicar esse número de fulls de apoio em todas as coordenadas da linha de uma vez (ex: "João:3 500|500 501|502 502|503" → todas precisam de 3). Se quiser um valor diferente só numa coordenada específica, coloque ":N" nela também (tem prioridade sobre o do nome). ":0" = não precisa de ajuda. Sem ":N" nenhum, usa o padrão da Etapa 3.</div>
-                        <textarea id="jjopg-names" placeholder="João:3 500|500 501|502 502|503&#10;Maria:0 510|498 511|500&#10;Pedro:3 520|500:0 521|501" style="width:100%;box-sizing:border-box;height:90px;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;"></textarea>
-                        <button id="jjopg-names-mark" style="width:100%;padding:8px;margin-bottom:6px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🏷️ MARCAR NO MAPA COM NOMES</button>
-                        <button id="jjopg-names-clear" style="width:100%;padding:7px;background:#2a1414;color:#e88;font-weight:700;border:1px solid #a55;border-radius:8px;cursor:pointer;">🗑️ LIMPAR NOMES DO MAPA</button>
-                        <div id="jjopg-names-status" style="color:#999;line-height:15px;margin-top:6px;"></div>
+                    <div style="border-top:1px dashed rgba(216,170,69,.3);padding-top:8px;margin-bottom:10px;">
+                        <div style="color:${gold};font-weight:700;margin-bottom:4px;">🖱️ Coletar coordenadas clicando no mapa</div>
+                        <div style="color:#999;margin-bottom:6px;">Ative e clique nas aldeias já marcadas no mapa real (as que ficaram sem nome/comando) pra coletar a coordenada — a aldeia clicada fica com uma marcação amarela transparente. Clique de novo na mesma aldeia pra desmarcar. Depois copie só as que você coletou agora e cole no campo de cima com o nome de quem vai atacar.</div>
+                        <button id="jjopg-collect-toggle" style="width:100%;padding:8px;margin-bottom:6px;background:#222;color:${gold};font-weight:700;border:1px solid ${gold};border-radius:8px;cursor:pointer;">🖱️ ATIVAR MODO COLETA NO MAPA</button>
+                        <button id="jjopg-collect-copy" style="width:100%;padding:8px;margin-bottom:6px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">📋 COPIAR COORDENADAS COLETADAS (0)</button>
+                        <button id="jjopg-collect-clear" style="width:100%;padding:7px;background:#2a1414;color:#e88;font-weight:700;border:1px solid #a55;border-radius:8px;cursor:pointer;">🗑️ LIMPAR COLETA</button>
+                        <div id="jjopg-collect-status" style="color:#999;line-height:15px;margin-top:6px;"></div>
                     </div>
+
+                    <div id="jjopg-targets-box"></div>
                 </div>
             </details>
 
@@ -438,41 +440,6 @@ javascript:(function () {
             copyText(this, text);
         };
     }
-    document.getElementById("jjopg-paste-add").onclick = function () {
-        const text = document.getElementById("jjopg-paste").value;
-        const matches = text.match(/\d{1,3}\|\d{1,3}/g) || [];
-        let added = 0;
-        matches.forEach(function (m) {
-            const pc = parseCoord(m);
-            if (pc && !targets.find(function (t) { return t.coord === pc.coord; })) {
-                targets.push({ coord: pc.coord, x: pc.x, y: pc.y, owner: "(manual)" });
-                added++;
-            }
-        });
-        document.getElementById("jjopg-paste-status").textContent = added + " coordenada(s) adicionada(s) aos alvos. Total: " + targets.length + ".";
-        renderTargets();
-    };
-    document.getElementById("jjopg-paste-mark").onclick = function () {
-        const status = document.getElementById("jjopg-paste-status");
-        if (typeof TWMap === "undefined" || !TWMap.villages) {
-            status.textContent = "Abra o mapa do jogo (screen=map) para destacar as aldeias.";
-            return;
-        }
-        const text = document.getElementById("jjopg-paste").value;
-        const matches = text.match(/\d{1,3}\|\d{1,3}/g) || [];
-        let marked = 0;
-        matches.forEach(function (m) {
-            const pc = parseCoord(m);
-            if (!pc) return;
-            const v = TWMap.villages[pc.x * 1000 + pc.y];
-            if (v) {
-                const el = document.getElementById("map_village_" + v.id);
-                if (el) { el.style.filter = "brightness(220%) grayscale(100%)"; marked++; }
-            }
-        });
-        status.textContent = marked + " de " + matches.length + " aldeia(s) destacada(s) no mapa (só as já carregadas na tela).";
-    };
-
     // ---------------- rótulos com nome no mapa real ----------------
     let namedTargets = [];      // {name, coord, x, y}
     let namedLabelInterval = null;
@@ -649,6 +616,82 @@ javascript:(function () {
         renderTargets();
         document.getElementById("jjopg-names-status").textContent = "Nomes removidos do mapa e da lista de alvos.";
     };
+
+    // ---------------- coletar coordenadas clicando direto no mapa real ----------------
+    // Modo "coleta": com o botão ativado, clicar numa aldeia do mapa real guarda a coordenada dela
+    // (marcando-a de amarelo transparente) sem precisar digitar nada. Serve pra aproveitar aldeias que
+    // você já vê marcadas/abertas no mapa (ex: sem comando ainda) e juntar só essas coordenadas novas,
+    // pra depois colar no campo de nome ali em cima. Clicar de novo na mesma aldeia desmarca.
+    let collectMode = false;
+    let collectedVillages = []; // {id, x, y, coord}
+
+    function findVillageKeyById(vid) {
+        if (typeof TWMap === "undefined" || !TWMap.villages) return null;
+        for (const key in TWMap.villages) {
+            const v = TWMap.villages[key];
+            if (v && String(v.id) === String(vid)) return key;
+        }
+        return null;
+    }
+
+    function updateCollectStatus() {
+        document.getElementById("jjopg-collect-copy").textContent = "📋 COPIAR COORDENADAS COLETADAS (" + collectedVillages.length + ")";
+        const status = document.getElementById("jjopg-collect-status");
+        if (collectMode) {
+            status.textContent = "🟡 Modo coleta ATIVO — clique nas aldeias do mapa real. " + collectedVillages.length + " coletada(s) até agora.";
+        } else {
+            status.textContent = collectedVillages.length ? collectedVillages.length + " coordenada(s) coletada(s)." : "Modo coleta desligado.";
+        }
+    }
+
+    document.getElementById("jjopg-collect-toggle").onclick = function () {
+        collectMode = !collectMode;
+        this.textContent = collectMode ? "🟡 MODO COLETA ATIVO (clique de novo pra desligar)" : "🖱️ ATIVAR MODO COLETA NO MAPA";
+        this.style.background = collectMode ? "#3a3410" : "#222";
+        updateCollectStatus();
+    };
+
+    document.getElementById("jjopg-collect-copy").onclick = function () {
+        if (!collectedVillages.length) { updateCollectStatus(); return; }
+        const text = collectedVillages.map(function (c) { return c.coord; }).join("\n");
+        copyText(this, text);
+    };
+
+    document.getElementById("jjopg-collect-clear").onclick = function () {
+        collectedVillages.forEach(function (c) {
+            const el = document.getElementById("map_village_" + c.id);
+            if (el) el.style.filter = "";
+        });
+        collectedVillages = [];
+        updateCollectStatus();
+    };
+
+    // clique em captura, pra pegar o clique antes do próprio jogo abrir o popup padrão da aldeia
+    document.addEventListener("click", function (e) {
+        if (!collectMode) return;
+        const el = e.target.closest && e.target.closest('[id^="map_village_"]');
+        if (!el) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const vid = el.id.replace("map_village_", "");
+        const key = findVillageKeyById(vid);
+        if (key === null) return;
+        const keyNum = parseInt(key, 10);
+        const y = keyNum % 1000;
+        const x = (keyNum - y) / 1000;
+        const coord = x + "|" + y;
+
+        const idx = collectedVillages.findIndex(function (c) { return c.coord === coord; });
+        if (idx >= 0) {
+            collectedVillages.splice(idx, 1);
+            el.style.filter = "";
+        } else {
+            collectedVillages.push({ id: vid, x: x, y: y, coord: coord });
+            el.style.filter = "brightness(190%) sepia(1) saturate(8) hue-rotate(-10deg) opacity(85%)";
+        }
+        updateCollectStatus();
+    }, true);
 
     // ================= SEÇÃO 5: DISTRIBUIÇÃO POR QUANTIDADE DISPONÍVEL (2 RODADAS) =================
     // Sem cálculo de distância/mapa. Caixinha de alvos = "Nome:N coord..." (via parseNamedList, aceita
@@ -955,43 +998,121 @@ javascript:(function () {
         const semiLines = groupCoordCounts(data.semis, 5);
         const bonusLines = groupCoordCounts(data.bonus, 5);
 
+        // sempre manda as quatro seções, mesmo vazias (spoiler em branco) — assim quem lê sabe que
+        // realmente não tem alvo daquele tipo, em vez de ficar em dúvida se esqueceram de colocar.
         let msg = "⚔️ OPERAÇÃO — " + (dateStr || "(defina a data)") + " — " + player + " ⚔️\n\n" +
             "🕛 Horário de impacto: " + (timeStr || "(defina o horário)") + "\n";
-        if (ntLines.length) {
-            msg += "\n🎯 SEU(S) NT\n\n[spoiler]\n" + ntLines.join("\n") + "\n[/spoiler]\n";
-        }
-        if (fakeLines.length) {
-            msg += "\n🎭 SEUS FAKES COORDENADOS\n\n[spoiler]\n" + fakeLines.join("\n") + "\n[/spoiler]\n";
-        }
+
+        msg += "\n🎯 SEU(S) NT\n\n[spoiler]\n" + (ntLines.length ? ntLines.join("\n") : "(sem alvo NT)") + "\n[/spoiler]\n";
+
+        msg += "\n🎭 SEUS FAKES COORDENADOS\n\n[spoiler]\n" + (fakeLines.length ? fakeLines.join("\n") : "(sem fake coordenado)") + "\n[/spoiler]\n";
+
+        msg += "\n⚔️ SEUS FULLS E SEMI-FULLS\n\n[spoiler]\n";
         if (fullLines.length || semiLines.length) {
-            msg += "\n⚔️ SEUS FULLS E SEMI-FULLS\n\n[spoiler]\n";
             if (fullLines.length) msg += "FULLS\n\n" + fullLines.join("\n") + "\n";
             if (fullLines.length && semiLines.length) msg += "\n";
             if (semiLines.length) msg += "SEMI-FULLS\n\n" + semiLines.join("\n") + "\n";
-            msg += "[/spoiler]\n";
+        } else {
+            msg += "(sem full/semi-full)\n";
         }
-        if (bonusLines.length) {
-            msg += "\n🎁 SEUS BÔNUS\n\n[spoiler]\n" + bonusLines.join("\n") + "\n[/spoiler]\n";
-        }
+        msg += "[/spoiler]\n";
+
+        msg += "\n🎁 SEUS BÔNUS\n\n[spoiler]\n" + (bonusLines.length ? bonusLines.join("\n") : "(sem bônus)") + "\n[/spoiler]\n";
         msg += "\n📌 Você é responsável pela sua própria noblagem: encaixe certinho os apoios colados e envie com anti-snipe.\n" +
             "Se não tiver tropa suficiente pro apoio, fale com algum amigo da tribo pra coordenar com você.\n\n" +
             "❗ Qualquer dúvida, NÃO me procure. Boa OP!";
         return msg;
     }
 
-    function messageBlockHtml(title, text) {
-        let h = '<div style="margin-bottom:10px;">';
-        h += '<div style="color:' + gold + ';font-weight:700;margin-bottom:4px;">👤 ' + title + '</div>';
-        h += '<textarea readonly style="width:100%;box-sizing:border-box;height:160px;padding:6px;margin-bottom:4px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.3);border-radius:8px;font-family:monospace;font-size:10px;white-space:pre-wrap;">' + text + '</textarea>';
-        h += '<button class="jjopg-field-copy" style="width:100%;padding:6px;background:#222;color:' + gold + ';font-weight:700;border:1px solid ' + gold + ';border-radius:6px;cursor:pointer;">📋 COPIAR MENSAGEM DE ' + title.toUpperCase() + '</button>';
+    // ---------------- link do nome pro perfil do jogador (screen=info_player) ----------------
+    // Busca o /map/player.txt do próprio jogo uma vez (id,nome,tribo,aldeias,pontos,rank) e monta um
+    // mapa nome(minúsculo) -> id, pra poder linkar o nome de cada MP direto pro perfil dele. Nomes que
+    // não baterem exatamente com o nome real no jogo (typo, apelido diferente) ficam sem link mesmo.
+    let playerIdMap = null;
+    function ensurePlayerIdMap() {
+        if (playerIdMap) return Promise.resolve(playerIdMap);
+        return fetch("/map/player.txt").then(function (r) { return r.text(); }).then(function (text) {
+            const map = {};
+            text.split("\n").forEach(function (line) {
+                line = line.trim();
+                if (!line) return;
+                const cols = line.split(",");
+                if (cols.length < 2) return;
+                const id = cols[0];
+                let name = cols[1] || "";
+                try { name = decodeURIComponent(name.replace(/\+/g, " ")); } catch (e) { /* mantém como veio */ }
+                map[name.toLowerCase()] = id;
+            });
+            playerIdMap = map;
+            return map;
+        }).catch(function () {
+            playerIdMap = {};
+            return playerIdMap;
+        });
+    }
+
+    // linha compacta por jogador: nome (clicável -> perfil, quando reconhecido) + botão copiar + botão
+    // abrir (mostra/esconde o texto da MP). Depois de copiar, a linha fica marcada com ✅ (fica marcada
+    // até gerar de novo), pra dar pra ver de cara quem já foi copiado sem precisar rolar a tela toda.
+    function messageRowHtml(title, text, playerId) {
+        // usa <span> com data-profile-url (nunca <a>) e abre com window.open() no clique — o próprio
+        // jogo costuma interceptar clique em links <a> pra navegar "por dentro" da mesma aba, o que
+        // destruía o painel e perdia a operação inteira que tava sendo montada. Span comum não é pego
+        // por esse tipo de interceptação, então garante que sempre abre numa aba nova de verdade.
+        const nameHtml = playerId
+            ? '<span class="jjopg-mp-ind-name" data-profile-url="/game.php?screen=info_player&id=' + playerId + '" style="flex:1;color:#eee;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:underline;text-decoration-color:' + gold + ';cursor:pointer;">👤 ' + title + '</span>'
+            : '<span style="flex:1;color:#eee;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">👤 ' + title + '</span>';
+        let h = '<div class="jjopg-mp-ind-item" style="margin-bottom:6px;">';
+        h += '<div class="jjopg-mp-ind-row" style="display:flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid rgba(216,170,69,.25);border-radius:8px;background:#111318;">';
+        h += '<span class="jjopg-mp-ind-check" style="width:16px;text-align:center;flex-shrink:0;"></span>';
+        h += nameHtml;
+        h += '<button class="jjopg-mp-ind-copy" style="padding:6px 10px;background:' + gold + ';color:#111;font-weight:800;border:none;border-radius:6px;cursor:pointer;flex-shrink:0;">📋 Copiar</button>';
+        h += '<button class="jjopg-mp-ind-open" style="padding:6px 10px;background:#222;color:' + gold + ';font-weight:700;border:1px solid ' + gold + ';border-radius:6px;cursor:pointer;flex-shrink:0;">👁️ Abrir</button>';
+        h += '</div>';
+        h += '<textarea class="jjopg-mp-ind-text" readonly style="display:none;width:100%;box-sizing:border-box;height:160px;padding:6px;margin-top:4px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.3);border-radius:8px;font-family:monospace;font-size:10px;white-space:pre-wrap;">' + text + '</textarea>';
         h += '</div>';
         return h;
+    }
+
+    function wireIndividualMessageRows(box) {
+        box.querySelectorAll(".jjopg-mp-ind-item").forEach(function (item) {
+            const row = item.querySelector(".jjopg-mp-ind-row");
+            const check = item.querySelector(".jjopg-mp-ind-check");
+            const copyBtn = item.querySelector(".jjopg-mp-ind-copy");
+            const openBtn = item.querySelector(".jjopg-mp-ind-open");
+            const textarea = item.querySelector(".jjopg-mp-ind-text");
+            const nameEl = item.querySelector(".jjopg-mp-ind-name");
+
+            if (nameEl) {
+                nameEl.onclick = function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+                    window.open(nameEl.getAttribute("data-profile-url"), "_blank", "noopener");
+                };
+            }
+
+            openBtn.onclick = function () {
+                const isOpen = textarea.style.display !== "none";
+                textarea.style.display = isOpen ? "none" : "block";
+                openBtn.textContent = isOpen ? "👁️ Abrir" : "🙈 Fechar";
+            };
+
+            copyBtn.onclick = function () {
+                navigator.clipboard.writeText(textarea.value).then(function () {
+                    check.textContent = "✅";
+                    row.style.background = "rgba(80,200,120,.14)";
+                    row.style.borderColor = "rgba(80,200,120,.55)";
+                }).catch(function () { prompt("Copie manualmente:", textarea.value); });
+            };
+        });
     }
 
     document.getElementById("jjopg-genmp-ind").onclick = function () {
         const status = document.getElementById("jjopg-mp-ind-status");
         const box = document.getElementById("jjopg-mp-ind-results");
         box.innerHTML = "";
+        status.textContent = "Gerando...";
 
         const dateStr = document.getElementById("jjopg-op-date").value.trim();
         const timeStr = document.getElementById("jjopg-op-time").value.trim();
@@ -1011,20 +1132,27 @@ javascript:(function () {
 
         function coordsOf(list, name) { return list.filter(function (e) { return e.name === name; }).map(function (e) { return e.coord; }); }
 
-        let html = "";
-        players.sort().forEach(function (p) {
-            const data = {
-                nt: coordsOf(ntEntries, p),
-                fakes: coordsOf(fakeEntries, p),
-                fulls: coordsOf(fullEntries, p),
-                semis: coordsOf(semiEntries, p),
-                bonus: coordsOf(bonusEntries, p)
-            };
-            html += messageBlockHtml(p, buildIndividualMessage(p, dateStr, timeStr, data));
+        // busca o mapa nome->id do jogo (uma vez só, fica em cache) pra poder linkar o nome ao perfil
+        ensurePlayerIdMap().then(function (idMap) {
+            let html = "";
+            let linked = 0;
+            players.sort().forEach(function (p) {
+                const data = {
+                    nt: coordsOf(ntEntries, p),
+                    fakes: coordsOf(fakeEntries, p),
+                    fulls: coordsOf(fullEntries, p),
+                    semis: coordsOf(semiEntries, p),
+                    bonus: coordsOf(bonusEntries, p)
+                };
+                const pid = idMap[p.toLowerCase()];
+                if (pid) linked++;
+                html += messageRowHtml(p, buildIndividualMessage(p, dateStr, timeStr, data), pid);
+            });
+            box.innerHTML = html;
+            wireIndividualMessageRows(box);
+            status.textContent = players.length + " mensagem(ns) individual(is) gerada(s)." +
+                (linked ? " " + linked + " nome(s) linkado(s) pro perfil (clique no nome pra abrir)." : " Nenhum nome bateu com jogador real do mundo pra linkar (confira a grafia).");
         });
-        box.innerHTML = html;
-        wireFieldCopyButtons(box);
-        status.textContent = players.length + " mensagem(ns) individual(is) gerada(s).";
     };
 
     // ================= SEÇÃO 8: MAPA MUNDIAL (com diplomacia da tribo + alvos coloridos) =================
@@ -1093,9 +1221,9 @@ javascript:(function () {
                     '<div><span style="display:inline-block;width:8px;height:8px;background:' + MAPCOLOR_PNA + ';border-radius:2px;margin-right:4px;"></span>PNA</div>' +
                     '<div><span style="display:inline-block;width:8px;height:8px;background:' + MAPCOLOR_ENEMY + ';border-radius:2px;margin-right:4px;"></span>Inimiga</div>' +
                     '<div><span style="display:inline-block;width:8px;height:8px;background:' + MAPCOLOR_OTHER + ';border-radius:2px;margin-right:4px;"></span>Outras</div>' +
-                    '<div style="margin-top:4px;border-top:1px solid rgba(216,170,69,.3);padding-top:4px;"><span style="display:inline-block;width:9px;height:9px;background:' + MAPCOLOR_NT + ';border-radius:50%;margin-right:4px;border:1px solid #000;"></span>🎯 Alvo NT</div>' +
-                    '<div><span style="display:inline-block;width:9px;height:9px;background:' + MAPCOLOR_FAKE + ';border-radius:50%;margin-right:4px;border:1px solid #000;"></span>🎭 Fake</div>' +
-                    '<div><span style="display:inline-block;width:9px;height:9px;background:' + MAPCOLOR_BONUS + ';border-radius:50%;margin-right:4px;border:1px solid #000;"></span>🎁 Bônus</div>' +
+                    '<div style="margin-top:4px;border-top:1px solid rgba(216,170,69,.3);padding-top:4px;"><span style="display:inline-block;width:9px;height:9px;background:' + MAPCOLOR_NT + ';border-radius:2px;margin-right:4px;border:1px solid #000;"></span>🎯 Alvo NT</div>' +
+                    '<div><span style="display:inline-block;width:9px;height:9px;background:' + MAPCOLOR_FAKE + ';border-radius:2px;margin-right:4px;border:1px solid #000;"></span>🎭 Fake</div>' +
+                    '<div><span style="display:inline-block;width:9px;height:9px;background:' + MAPCOLOR_BONUS + ';border-radius:2px;margin-right:4px;border:1px solid #000;"></span>🎁 Bônus</div>' +
                 '</div>' +
             '</div>';
 
@@ -1184,18 +1312,14 @@ javascript:(function () {
                     ctx.fillRect(p[0] - dotBig / 2, p[1] - dotBig / 2, dotBig, dotBig);
                 });
 
-                // alvos da OP por cima de tudo, sempre bem visíveis (bolinha com borda preta)
-                const dotTarget = Math.max(4, state.scale * 2.2);
+                // alvos da OP por cima de tudo: pinta o próprio quadradinho da aldeia (mesmo tamanho/âncora
+                // dos outros grupos), em vez de um círculo separado que ficava flutuando por cima.
+                const dotTarget = Math.max(2.5, state.scale * 1.6);
                 state.targets.forEach(function (t) {
                     const p = worldToScreen(t.x, t.y);
                     if (p[0] < -10 || p[0] > canvas.width + 10 || p[1] < -10 || p[1] > canvas.height + 10) return;
-                    ctx.beginPath();
-                    ctx.arc(p[0], p[1], dotTarget / 2, 0, Math.PI * 2);
                     ctx.fillStyle = t.kind === "fake" ? MAPCOLOR_FAKE : (t.kind === "bonus" ? MAPCOLOR_BONUS : MAPCOLOR_NT);
-                    ctx.fill();
-                    ctx.lineWidth = Math.max(1, dpr);
-                    ctx.strokeStyle = "#000";
-                    ctx.stroke();
+                    ctx.fillRect(p[0] - dotTarget / 2, p[1] - dotTarget / 2, dotTarget, dotTarget);
                 });
             });
         }
