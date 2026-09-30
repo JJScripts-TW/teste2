@@ -38,151 +38,178 @@ javascript:(function () {
         font-size:11px;
     `;
     panel.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid rgba(216,170,69,.4);position:sticky;top:0;background:#0c0d10;z-index:2;border-radius:14px 14px 0 0;">
-            <div style="font-weight:800;color:${gold};font-size:12px;">⚔️ GERADOR DE OP</div>
-            <span id="jjopg-x" style="cursor:pointer;color:#ddd;font-size:14px;">✕</span>
+        <style>
+            #jj-opgen{--g:${gold};}
+            #jj-opgen .sec{border:1px solid rgba(216,170,69,.22);border-radius:9px;padding:6px 8px;margin-bottom:6px;}
+            #jj-opgen summary{cursor:pointer;color:var(--g);font-weight:700;font-size:11px;list-style:none;padding:2px 0;}
+            #jj-opgen summary::-webkit-details-marker{display:none;}
+            #jj-opgen summary:before{content:"▸";display:inline-block;width:12px;color:rgba(216,170,69,.7);}
+            #jj-opgen details[open]>summary:before{content:"▾";}
+            #jj-opgen .secbody{margin-top:6px;}
+            #jj-opgen label.l{display:block;color:#9aa0aa;font-size:9.5px;margin-bottom:2px;}
+            #jj-opgen input.i,#jj-opgen textarea.t{width:100%;box-sizing:border-box;padding:6px 7px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.35);border-radius:7px;font-size:10.5px;}
+            #jj-opgen textarea.t{font-family:ui-monospace,Menlo,monospace;font-size:10px;resize:vertical;}
+            #jj-opgen .mb{margin-bottom:6px;}
+            #jj-opgen .row{display:flex;gap:5px;}
+            #jj-opgen .row>*{flex:1;min-width:0;}
+            #jj-opgen .chk{display:flex;align-items:center;gap:6px;color:#9aa0aa;font-size:10px;margin-bottom:6px;}
+            #jj-opgen button.b{width:100%;box-sizing:border-box;padding:7px;border-radius:7px;font-weight:800;font-size:10.5px;cursor:pointer;border:none;}
+            #jj-opgen button.b1{background:var(--g);color:#111;}
+            #jj-opgen button.b2{background:#1b1d22;color:var(--g);border:1px solid rgba(216,170,69,.55);}
+            #jj-opgen button.b3{background:#241414;color:#e88;border:1px solid #a55;}
+            #jj-opgen .status{color:#8b909a;font-size:9.5px;line-height:14px;margin:5px 0;}
+            #jj-opgen details.help{margin-bottom:6px;}
+            #jj-opgen details.help>summary{color:#767b84;font-weight:500;font-size:9px;}
+            #jj-opgen details.help>summary:before{content:"ℹ";}
+            #jj-opgen details.help[open]>summary:before{content:"ℹ";}
+            #jj-opgen details.help p{color:#8b909a;font-size:9.5px;line-height:13px;margin:4px 0 0;}
+            #jj-opgen hr.d{border:none;border-top:1px dashed rgba(216,170,69,.25);margin:8px 0;}
+            #jj-opgen .subhead{color:var(--g);font-weight:700;font-size:10px;margin-bottom:3px;}
+        </style>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid rgba(216,170,69,.4);position:sticky;top:0;background:#0c0d10;z-index:2;border-radius:14px 14px 0 0;">
+            <div style="font-weight:800;color:${gold};font-size:11.5px;">⚔️ GERADOR DE OP</div>
+            <span id="jjopg-x" style="cursor:pointer;color:#ddd;font-size:13px;padding:2px 4px;">✕</span>
         </div>
-        <div style="padding:10px 12px;">
+        <div style="padding:8px 9px;">
 
-            <details id="sec1" open style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
-                <summary style="cursor:pointer;color:${gold};font-weight:700;">1️⃣ Importar Fulls + Semi-fulls da tribo</summary>
-                <div style="margin-top:8px;">
-                    <label style="display:block;color:#bbb;margin-bottom:3px;">TAG da minha tribo</label>
-                    <input id="jjopg-tag" placeholder="Ex: HNK" style="width:100%;box-sizing:border-box;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;">
-                    <div style="color:#999;margin-bottom:4px;">Critério de FULL:</div>
-                    <div style="display:flex;gap:6px;margin-bottom:8px;">
-                        <div style="flex:1;"><label style="display:block;color:#bbb;margin-bottom:3px;">Mín. Machado</label>
-                        <input id="jjopg-axe" type="number" value="0" style="width:100%;box-sizing:border-box;padding:7px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;"></div>
-                        <div style="flex:1;"><label style="display:block;color:#bbb;margin-bottom:3px;">Mín. Cav. Leve</label>
-                        <input id="jjopg-light" type="number" value="0" style="width:100%;box-sizing:border-box;padding:7px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;"></div>
+            <details id="sec1" open class="sec">
+                <summary>1️⃣ Importar Fulls + Semi-fulls da tribo</summary>
+                <div class="secbody">
+                    <label class="l">TAG da minha tribo</label>
+                    <input id="jjopg-tag" class="i mb" placeholder="Ex: HNK">
+                    <details class="help"><summary>Critério de FULL / SEMI-FULL</summary><p>FULL = aldeia que bate os mínimos abaixo. SEMI-FULL = abaixo disso mas ainda com tropa solta (senão é ignorada).</p></details>
+                    <div class="row mb">
+                        <div><label class="l">Mín. Machado</label><input id="jjopg-axe" class="i" type="number" value="0"></div>
+                        <div><label class="l">Mín. Cav. Leve</label><input id="jjopg-light" class="i" type="number" value="0"></div>
                     </div>
-                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:10px;color:#bbb;"><input id="jjopg-ram" type="checkbox"> Exigir aríete p/ contar como FULL</label>
-                    <div style="color:#999;margin-bottom:4px;">Critério de SEMI-FULL (abaixo disso, a aldeia é ignorada mesmo tendo 1-2 tropas soltas):</div>
-                    <div style="display:flex;gap:6px;margin-bottom:8px;">
-                        <div style="flex:1;"><label style="display:block;color:#bbb;margin-bottom:3px;">Mín. Machado (semi)</label>
-                        <input id="jjopg-semi-axe" type="number" value="0" style="width:100%;box-sizing:border-box;padding:7px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;"></div>
-                        <div style="flex:1;"><label style="display:block;color:#bbb;margin-bottom:3px;">Mín. Cav. Leve (semi)</label>
-                        <input id="jjopg-semi-light" type="number" value="0" style="width:100%;box-sizing:border-box;padding:7px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;"></div>
+                    <label class="chk"><input id="jjopg-ram" type="checkbox"> Exigir aríete p/ contar como FULL</label>
+                    <div class="row mb">
+                        <div><label class="l">Mín. Machado (semi)</label><input id="jjopg-semi-axe" class="i" type="number" value="0"></div>
+                        <div><label class="l">Mín. Cav. Leve (semi)</label><input id="jjopg-semi-light" class="i" type="number" value="0"></div>
                     </div>
-                    <button id="jjopg-import" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">📥 IMPORTAR FULLS + SEMI-FULLS</button>
-                    <div id="jjopg-status" style="color:#999;margin-bottom:6px;line-height:15px;"></div>
+                    <button id="jjopg-import" class="b b1 mb">📥 IMPORTAR FULLS + SEMI-FULLS</button>
+                    <div id="jjopg-status" class="status"></div>
                     <div id="jjopg-results"></div>
                 </div>
             </details>
 
-            <details id="sec4" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
-                <summary style="cursor:pointer;color:${gold};font-weight:700;">2️⃣ Colar coordenadas com nome e visualizar no mapa</summary>
-                <div style="margin-top:8px;">
-                    <div style="color:#999;margin-bottom:6px;">Uma linha por jogador: nome + coordenadas. Coloque ":N" logo depois do NOME pra aplicar esse número de fulls de apoio em todas as coordenadas da linha de uma vez (ex: "João:3 500|500 501|502 502|503" → todas precisam de 3). Se quiser um valor diferente só numa coordenada específica, coloque ":N" nela também (tem prioridade sobre o do nome). ":0" = não precisa de ajuda. Sem ":N" nenhum, usa o padrão da Etapa 3.</div>
-                    <textarea id="jjopg-names" placeholder="João:3 500|500 501|502 502|503&#10;Maria:0 510|498 511|500&#10;Pedro:3 520|500:0 521|501" style="width:100%;box-sizing:border-box;height:90px;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;"></textarea>
-                    <button id="jjopg-names-mark" style="width:100%;padding:8px;margin-bottom:6px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🏷️ MARCAR NO MAPA COM NOMES</button>
-                    <button id="jjopg-names-clear" style="width:100%;padding:7px;background:#2a1414;color:#e88;font-weight:700;border:1px solid #a55;border-radius:8px;cursor:pointer;">🗑️ LIMPAR NOMES DO MAPA</button>
-                    <div id="jjopg-names-status" style="color:#999;line-height:15px;margin-top:6px;margin-bottom:10px;"></div>
-
-                    <div style="border-top:1px dashed rgba(216,170,69,.3);padding-top:8px;margin-bottom:10px;">
-                        <div style="color:${gold};font-weight:700;margin-bottom:4px;">🖱️ Coletar coordenadas clicando no mapa</div>
-                        <div style="color:#999;margin-bottom:6px;">Ative e clique nas aldeias já marcadas no mapa real (as que ficaram sem nome/comando) pra coletar a coordenada — a aldeia clicada fica com uma marcação amarela transparente. Clique de novo na mesma aldeia pra desmarcar. Depois copie só as que você coletou agora e cole no campo de cima com o nome de quem vai atacar.</div>
-                        <button id="jjopg-collect-toggle" style="width:100%;padding:8px;margin-bottom:6px;background:#222;color:${gold};font-weight:700;border:1px solid ${gold};border-radius:8px;cursor:pointer;">🖱️ ATIVAR MODO COLETA NO MAPA</button>
-                        <button id="jjopg-collect-copy" style="width:100%;padding:8px;margin-bottom:6px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">📋 COPIAR COORDENADAS COLETADAS (0)</button>
-                        <button id="jjopg-collect-clear" style="width:100%;padding:7px;background:#2a1414;color:#e88;font-weight:700;border:1px solid #a55;border-radius:8px;cursor:pointer;">🗑️ LIMPAR COLETA</button>
-                        <div id="jjopg-collect-status" style="color:#999;line-height:15px;margin-top:6px;"></div>
+            <details id="sec4" class="sec">
+                <summary>2️⃣ Colar coordenadas com nome e visualizar no mapa</summary>
+                <div class="secbody">
+                    <details class="help"><summary>Como escrever a lista</summary><p>Uma linha por jogador: nome + coordenadas. ":N" logo após o nome define quantos apoios cada coordenada da linha precisa (ex: "João:3 500|500 501|502" → todas precisam de 3). ":N" numa coordenada específica tem prioridade sobre o do nome. ":0" = não precisa de ajuda. Sem ":N" nenhum, usa o padrão da Etapa 3.</p></details>
+                    <textarea id="jjopg-names" class="t mb" placeholder="João:3 500|500 501|502 502|503&#10;Maria:0 510|498 511|500&#10;Pedro:3 520|500:0 521|501" style="height:90px;"></textarea>
+                    <div class="row mb">
+                        <button id="jjopg-names-mark" class="b b1">🏷️ MARCAR NO MAPA</button>
+                        <button id="jjopg-names-clear" class="b b3">🗑️ LIMPAR</button>
                     </div>
+                    <div id="jjopg-names-status" class="status"></div>
+
+                    <hr class="d">
+                    <div class="subhead">🖱️ Coletar coordenadas clicando no mapa</div>
+                    <details class="help"><summary>Como funciona</summary><p>Ative e clique em qualquer ponto do mapa real pra coletar a coordenada (fica marcada de amarelo transparente). Clique de novo na mesma aldeia pra desmarcar. Depois copie só as que você coletou agora e cole no campo de cima com o nome de quem vai atacar.</p></details>
+                    <button id="jjopg-collect-toggle" class="b b2 mb">🖱️ ATIVAR MODO COLETA NO MAPA</button>
+                    <div class="row mb">
+                        <button id="jjopg-collect-copy" class="b b1">📋 COPIAR (0)</button>
+                        <button id="jjopg-collect-clear" class="b b3">🗑️ LIMPAR</button>
+                    </div>
+                    <div id="jjopg-collect-status" class="status"></div>
 
                     <div id="jjopg-targets-box"></div>
                 </div>
             </details>
 
-            <details id="sec5" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
-                <summary style="cursor:pointer;color:${gold};font-weight:700;">3️⃣ Distribuir por quantidade disponível</summary>
-                <div style="margin-top:8px;">
-                    <div style="color:#999;margin-bottom:6px;">Sem cálculo de distância/mapa — só aloca por quantidade disponível de cada jogador (na ordem que aparecem na caixinha 2) até cobrir o pedido de cada alvo.</div>
+            <details id="sec5" class="sec">
+                <summary>3️⃣ Distribuir por quantidade disponível</summary>
+                <div class="secbody">
+                    <details class="help"><summary>Como funciona</summary><p>Sem cálculo de distância/mapa — só aloca por quantidade disponível de cada jogador (na ordem que aparecem na caixinha do pool) até cobrir o pedido de cada alvo.</p></details>
 
-                    <label style="display:block;color:#bbb;margin-bottom:3px;">🎯 Alvos que precisam de distribuição</label>
-                    <div style="color:#888;margin-bottom:3px;">Formato: <code>Nome:N coord coord coord</code> (":N" = quantos apoios cada alvo do Nome precisa; sem ":N" usa o padrão abaixo). Bônus: escreva "Bonus" em qualquer parte da linha — tudo depois vira alvo bônus (nunca precisa de apoio).</div>
-                    <textarea id="jjopg-dist-targets-box" placeholder="João:3 500|500 501|502 502|503&#10;Maria:0 510|498&#10;Pedro:2 520|500 - Bonus: 521|501" style="width:100%;box-sizing:border-box;height:100px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+                    <label class="l">🎯 Alvos que precisam de distribuição</label>
+                    <textarea id="jjopg-dist-targets-box" class="t mb" placeholder="João:3 500|500 501|502 502|503&#10;Maria:0 510|498&#10;Pedro:2 520|500 - Bonus: 521|501" style="height:90px;"></textarea>
+                    <details class="help"><summary>Formato da caixa acima</summary><p><code>Nome:N coord coord coord</code> (":N" = quantos apoios cada alvo do Nome precisa; sem ":N" usa o padrão abaixo). Bônus: escreva "Bonus" em qualquer parte da linha — tudo depois vira alvo bônus (nunca precisa de apoio).</p></details>
 
-                    <label style="display:block;color:#bbb;margin-bottom:3px;">🛡️ Fulls/semis disponíveis (por jogador)</label>
-                    <div style="color:#888;margin-bottom:3px;">Cola direto do jogo: <code>Nome &lt;F&gt; F &lt;S&gt; S</code> (ex: <code>Pedro 10 F 5 S</code>). Sem coordenada — é só a quantidade disponível de cada um.</div>
-                    <textarea id="jjopg-dist-pool-box" placeholder="Pedro 10 F 5 S&#10;Maria 6 F 2 S" style="width:100%;box-sizing:border-box;height:90px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+                    <label class="l">🛡️ Fulls/semis disponíveis (por jogador)</label>
+                    <textarea id="jjopg-dist-pool-box" class="t mb" placeholder="Pedro 10 F 5 S&#10;Maria 6 F 2 S" style="height:80px;"></textarea>
+                    <details class="help"><summary>Formato da caixa acima</summary><p>Cola direto do jogo: <code>Nome &lt;F&gt; F &lt;S&gt; S</code> (ex: <code>Pedro 10 F 5 S</code>). Sem coordenada — é só a quantidade disponível de cada um.</p></details>
 
-                    <label style="display:block;color:#bbb;margin-bottom:3px;">Mín. apoios por alvo (padrão, quando não tiver ":N")</label>
-                    <input id="jjopg-minfulls" type="number" value="1" min="1" style="width:100%;box-sizing:border-box;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;">
-                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:10px;color:#bbb;"><input id="jjopg-skip-bonus" type="checkbox"> Ocultar alvos 🎁 bônus desta distribuição</label>
-                    <button id="jjopg-distribute" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🎯 GERAR DISTRIBUIÇÃO</button>
-                    <div id="jjopg-dist-status" style="color:#999;margin-bottom:6px;line-height:15px;"></div>
+                    <div class="row mb">
+                        <div><label class="l">Mín. apoios/alvo (padrão)</label><input id="jjopg-minfulls" class="i" type="number" value="1" min="1"></div>
+                        <div style="display:flex;align-items:flex-end;"><label class="chk" style="margin-bottom:6px;"><input id="jjopg-skip-bonus" type="checkbox"> Ocultar 🎁 bônus</label></div>
+                    </div>
+                    <button id="jjopg-distribute" class="b b1 mb">🎯 GERAR DISTRIBUIÇÃO</button>
+                    <div id="jjopg-dist-status" class="status"></div>
                     <div id="jjopg-dist-results"></div>
                 </div>
             </details>
 
-            <details id="sec5b" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
-                <summary style="cursor:pointer;color:${gold};font-weight:700;">3️⃣.2 Distribuir proporcionalmente (rodada 2 — o que sobrou da tribo)</summary>
-                <div style="margin-top:8px;">
-                    <div style="color:#999;margin-bottom:6px;">Caixinha própria e independente da de cima. Pega TODO o pool disponível e espalha igualzinho entre as coordenadas — 1 apoio pra cada, se sobrar dá 2 pra cada, e assim por diante. Não puxa nada automático.</div>
+            <details id="sec5b" class="sec">
+                <summary>3️⃣.2 Distribuir proporcionalmente (rodada 2)</summary>
+                <div class="secbody">
+                    <details class="help"><summary>Como funciona</summary><p>Caixinha própria e independente da de cima. Pega TODO o pool disponível e espalha igualzinho entre as coordenadas — 1 apoio pra cada, se sobrar dá 2 pra cada, e assim por diante. Não puxa nada automático.</p></details>
 
-                    <label style="display:block;color:#bbb;margin-bottom:3px;">📍 Coordenadas (só as coordenadas, sem nome nem número)</label>
-                    <div style="color:#888;margin-bottom:3px;">Cole só as coordenadas soltas, do jeito que estiverem (espaço, quebra de linha, tabela, tanto faz).</div>
-                    <textarea id="jjopg-dist-targets-box-2" placeholder="494|620 492|620 489|620&#10;487|621 488|619 487|618" style="width:100%;box-sizing:border-box;height:100px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+                    <label class="l">📍 Coordenadas (só coordenadas, sem nome nem número)</label>
+                    <textarea id="jjopg-dist-targets-box-2" class="t mb" placeholder="494|620 492|620 489|620&#10;487|621 488|619 487|618" style="height:80px;"></textarea>
 
-                    <label style="display:block;color:#bbb;margin-bottom:3px;">👥 Pool disponível para esta rodada (Nome F S)</label>
-                    <div style="color:#888;margin-bottom:3px;">Cole aqui o que sobrou/tiver disponível — pode ser a sobra da rodada 1 (copie do campo "♻️ Sobra" ali de cima) ou qualquer outra lista <code>Nome F S</code>. TODO o pool é usado, dividido igualmente entre as coordenadas.</div>
-                    <textarea id="jjopg-dist-pool-box-2" placeholder="Arken 0 F 10 S&#10;Minatto 0 F 14 S" style="width:100%;box-sizing:border-box;height:100px;padding:7px;margin-bottom:10px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+                    <label class="l">👥 Pool disponível para esta rodada (Nome F S)</label>
+                    <textarea id="jjopg-dist-pool-box-2" class="t mb" placeholder="Arken 0 F 10 S&#10;Minatto 0 F 14 S" style="height:80px;"></textarea>
+                    <details class="help"><summary>De onde vem o pool</summary><p>Pode ser a sobra da rodada 1 (copie do campo "♻️ Sobra" ali de cima) ou qualquer outra lista <code>Nome F S</code>. TODO o pool é usado, dividido igualmente entre as coordenadas.</p></details>
 
-                    <button id="jjopg-distribute-2" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🌓 DISTRIBUIR PROPORCIONALMENTE (RODADA 2)</button>
-                    <div id="jjopg-dist-status-2" style="color:#999;margin-bottom:6px;line-height:15px;"></div>
+                    <button id="jjopg-distribute-2" class="b b1 mb">🌓 DISTRIBUIR (RODADA 2)</button>
+                    <div id="jjopg-dist-status-2" class="status"></div>
                     <div id="jjopg-dist-results-2"></div>
                 </div>
             </details>
 
-            <details id="sec7" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
-                <summary style="cursor:pointer;color:${gold};font-weight:700;">4️⃣ Gerador de Mensagem da Operação</summary>
-                <div style="margin-top:8px;">
-                    <div style="color:#999;margin-bottom:6px;">Seção 100% manual — cole/edite as caixas abaixo com o plano final (ex: mesclado no seu OneNote) e clique em "GERAR MENSAGEM". Modelo padrão fixo — só data e horário mudam.</div>
-                    <div style="display:flex;gap:6px;margin-bottom:8px;">
-                        <div style="flex:1;"><label style="display:block;color:#bbb;margin-bottom:3px;">Data da OP</label>
-                        <input id="jjopg-op-date" placeholder="29/09/2026" style="width:100%;box-sizing:border-box;padding:7px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;"></div>
-                        <div style="flex:1;"><label style="display:block;color:#bbb;margin-bottom:3px;">Horário de impacto</label>
-                        <input id="jjopg-op-time" placeholder="12:05:00.000" style="width:100%;box-sizing:border-box;padding:7px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;"></div>
+            <details id="sec7" class="sec">
+                <summary>4️⃣ Gerador de Mensagem da Operação</summary>
+                <div class="secbody">
+                    <details class="help"><summary>Como funciona</summary><p>Seção 100% manual — cole/edite as caixas abaixo com o plano final e clique em "GERAR MENSAGEM". Modelo padrão fixo — só data e horário mudam.</p></details>
+                    <div class="row mb">
+                        <div><label class="l">Data da OP</label><input id="jjopg-op-date" class="i" placeholder="29/09/2026"></div>
+                        <div><label class="l">Horário de impacto</label><input id="jjopg-op-time" class="i" placeholder="12:05:00.000"></div>
                     </div>
-                    <label style="display:block;color:#bbb;margin-bottom:3px;">👑 Alvos NT (nobre) — nick e coordenadas</label>
-                    <textarea id="jjopg-mp-nt" placeholder="500|500 (Pedro) → 480|480" style="width:100%;box-sizing:border-box;height:64px;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+                    <label class="l">👑 Alvos NT (nobre)</label>
+                    <textarea id="jjopg-mp-nt" class="t mb" placeholder="500|500 (Pedro) → 480|480" style="height:56px;"></textarea>
 
-                    <label style="display:block;color:#bbb;margin-bottom:3px;">🎭 Alvos Fakes coordenados</label>
-                    <textarea id="jjopg-mp-fakes" placeholder="500|502 (Pedro) → 481|480 (fake nobre)" style="width:100%;box-sizing:border-box;height:64px;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+                    <label class="l">🎭 Alvos Fakes coordenados</label>
+                    <textarea id="jjopg-mp-fakes" class="t mb" placeholder="500|502 (Pedro) → 481|480 (fake nobre)" style="height:56px;"></textarea>
 
-                    <label style="display:block;color:#bbb;margin-bottom:3px;">⚔️ Fulls — nick e alvos</label>
-                    <textarea id="jjopg-mp-fulls" style="width:100%;box-sizing:border-box;height:64px;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+                    <label class="l">⚔️ Fulls — nick e alvos</label>
+                    <textarea id="jjopg-mp-fulls" class="t mb" style="height:56px;"></textarea>
 
-                    <label style="display:block;color:#bbb;margin-bottom:3px;">🌓 Semi-fulls — nick e alvos</label>
-                    <textarea id="jjopg-mp-semis" style="width:100%;box-sizing:border-box;height:64px;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+                    <label class="l">🌓 Semi-fulls — nick e alvos</label>
+                    <textarea id="jjopg-mp-semis" class="t mb" style="height:56px;"></textarea>
 
-                    <label style="display:block;color:#bbb;margin-bottom:3px;">🎁 Alvos Bônus</label>
-                    <textarea id="jjopg-mp-bonus" style="width:100%;box-sizing:border-box;height:64px;padding:7px;margin-bottom:8px;background:#0d0f12;color:#eee;border:1px solid rgba(216,170,69,.4);border-radius:8px;resize:vertical;font-family:monospace;font-size:10px;"></textarea>
+                    <label class="l">🎁 Alvos Bônus</label>
+                    <textarea id="jjopg-mp-bonus" class="t mb" style="height:56px;"></textarea>
 
-                    <button id="jjopg-genmp" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">✉️ GERAR MENSAGEM DA OPERAÇÃO</button>
-                    <div id="jjopg-mp-status" style="color:#999;margin-bottom:6px;line-height:15px;"></div>
+                    <button id="jjopg-genmp" class="b b1 mb">✉️ GERAR MENSAGEM DA OPERAÇÃO</button>
+                    <div id="jjopg-mp-status" class="status"></div>
                     <div id="jjopg-mp-results"></div>
 
-                    <div style="border-top:1px solid rgba(216,170,69,.3);margin:12px 0 10px;padding-top:10px;color:#999;">Mesmo conteúdo das caixas acima, mas separado num aviso individual pra cada jogador — só com o que ELE precisa mandar.</div>
-                    <button id="jjopg-genmp-ind" style="width:100%;padding:9px;margin-bottom:8px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">✉️✉️ GERAR MENSAGENS INDIVIDUAIS (por jogador)</button>
-                    <div id="jjopg-mp-ind-status" style="color:#999;margin-bottom:6px;line-height:15px;"></div>
+                    <hr class="d">
+                    <div class="status" style="margin:0 0 6px;">Mesmo conteúdo das caixas acima, separado num aviso individual por jogador.</div>
+                    <button id="jjopg-genmp-ind" class="b b1 mb">✉️✉️ GERAR MENSAGENS INDIVIDUAIS</button>
+                    <div id="jjopg-mp-ind-status" class="status"></div>
                     <div id="jjopg-mp-ind-results"></div>
                 </div>
             </details>
 
-            <details id="sec8" style="margin-bottom:8px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
-                <summary style="cursor:pointer;color:${gold};font-weight:700;">5️⃣ Visualizar plano no mapa mundial</summary>
-                <div style="margin-top:8px;">
-                    <div style="color:#999;margin-bottom:6px;">Abre o mapa mundial (com a diplomacia da tribo já carregada) e destaca por cima: 🎯 alvos NT em amarelo, 🎭 fakes em branco, 🎁 bônus em verde claro — lidos das caixas de NT/FAKES/BÔNUS da Etapa 4. Passe o mouse num alvo pra ver o nome.</div>
-                    <button id="jjopg-showmap" style="width:100%;padding:9px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">🗺️ ABRIR MAPA MUNDIAL COM OS ALVOS</button>
+            <details id="sec8" class="sec">
+                <summary>5️⃣ Visualizar plano no mapa mundial</summary>
+                <div class="secbody">
+                    <details class="help"><summary>Como funciona</summary><p>Abre o mapa mundial (com a diplomacia da tribo já carregada) e destaca por cima: 🎯 alvos NT em amarelo, 🎭 fakes em branco, 🎁 bônus em verde claro — lidos das caixas de NT/FAKES/BÔNUS da Etapa 4. Passe o mouse num alvo pra ver o nome.</p></details>
+                    <button id="jjopg-showmap" class="b b1">🗺️ ABRIR MAPA MUNDIAL COM OS ALVOS</button>
                 </div>
             </details>
 
-            <details id="sec9" style="margin-bottom:4px;border:1px solid rgba(216,170,69,.3);border-radius:10px;padding:8px;">
-                <summary style="cursor:pointer;color:${gold};font-weight:700;">6️⃣ Exportar plano final</summary>
-                <div style="margin-top:8px;">
-                    <button id="jjopg-export-copy" style="width:100%;padding:9px;margin-bottom:6px;background:${gold};color:#111;font-weight:800;border:none;border-radius:8px;cursor:pointer;">📋 COPIAR TABELA DO PLANO</button>
-                    <button id="jjopg-export-file" style="width:100%;padding:8px;background:#222;color:${gold};font-weight:700;border:1px solid ${gold};border-radius:8px;cursor:pointer;">⬇️ BAIXAR .TXT</button>
-                    <div id="jjopg-export-status" style="color:#999;margin-top:6px;"></div>
+            <details id="sec9" class="sec" style="margin-bottom:2px;">
+                <summary>6️⃣ Exportar plano final</summary>
+                <div class="secbody">
+                    <div class="row mb">
+                        <button id="jjopg-export-copy" class="b b1">📋 COPIAR TABELA</button>
+                        <button id="jjopg-export-file" class="b b2">⬇️ BAIXAR .TXT</button>
+                    </div>
+                    <div id="jjopg-export-status" class="status"></div>
                 </div>
             </details>
 
