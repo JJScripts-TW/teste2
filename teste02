@@ -83,13 +83,11 @@ javascript:(function () {
             #jj-opgen ::-webkit-scrollbar-track{background:#080603;}
             #jj-opgen ::-webkit-scrollbar-thumb{background:var(--g);border-radius:0;}
         </style>
-        <div style="position:sticky;top:0;z-index:2;background:radial-gradient(ellipse at 50% -40%,rgba(240,180,41,.22),#0a0703 65%);border-bottom:2px solid var(--g);box-shadow:0 2px 14px rgba(240,180,41,.25);padding:12px 12px 10px;overflow:hidden;">
-            <div style="position:absolute;top:0;left:0;width:46px;height:46px;background:repeating-linear-gradient(45deg,rgba(240,180,41,.5) 0 6px,transparent 6px 12px);clip-path:polygon(0 0,100% 0,0 100%);opacity:.35;"></div>
-            <div style="position:absolute;top:0;right:0;width:46px;height:46px;background:repeating-linear-gradient(-45deg,rgba(240,180,41,.5) 0 6px,transparent 6px 12px);clip-path:polygon(100% 0,100% 100%,0 0);opacity:.35;"></div>
-            <span id="jjopg-x" style="position:absolute;top:8px;right:10px;cursor:pointer;color:var(--gl);font-size:12px;font-weight:800;padding:3px 8px;border:1px solid var(--g);background:#0d0a05;line-height:1;box-shadow:0 0 8px rgba(240,180,41,.4);
+        <div id="jjopg-header" style="position:sticky;top:0;z-index:2;background:radial-gradient(ellipse at 50% -40%,rgba(240,180,41,.22),#0a0703 65%);border-bottom:2px solid var(--g);box-shadow:0 2px 14px rgba(240,180,41,.25);padding:12px 12px 10px;cursor:grab;user-select:none;">
+            <span id="jjopg-x" style="position:absolute;top:8px;right:10px;z-index:5;cursor:pointer;color:var(--gl);font-size:12px;font-weight:800;padding:3px 8px;border:1px solid var(--g);background:#0d0a05;line-height:1;box-shadow:0 0 8px rgba(240,180,41,.4);pointer-events:auto;
                 clip-path:polygon(5px 0,calc(100% - 5px) 0,100% 5px,100% calc(100% - 5px),calc(100% - 5px) 100%,5px 100%,0 calc(100% - 5px),0 5px);">✕</span>
-            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;position:relative;">
-                <img src="${opLogoUri}" alt="OP Planner" style="width:92px;height:92px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(240,180,41,.55));">
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:100%;position:relative;pointer-events:none;">
+                <img src="${opLogoUri}" alt="OP Planner" style="display:block;width:92px;height:92px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(240,180,41,.55));">
                 <div style="color:var(--gl);font-size:8.5px;letter-spacing:2.5px;text-transform:uppercase;opacity:.85;margin-top:-2px;">— Painel de Operações —</div>
             </div>
         </div>
@@ -240,12 +238,52 @@ javascript:(function () {
         </div>
     `;
     document.body.appendChild(panel);
-    document.getElementById("jjopg-x").onclick = function () {
+    document.getElementById("jjopg-x").onclick = function (e) {
+        e.stopPropagation();
         if (typeof namedLabelInterval !== "undefined" && namedLabelInterval) clearInterval(namedLabelInterval);
         document.querySelectorAll('[id^="jj-oplabel-"]').forEach(function (el) { el.remove(); });
         if (typeof stopCollectMode === "function") stopCollectMode(); // devolve o clique do mapa pro jogo
         panel.remove();
     };
+
+    // ---------------- arrastar o painel pelo cabeçalho ----------------
+    (function enableDrag() {
+        const header = document.getElementById("jjopg-header");
+        let dragging = false, offsetX = 0, offsetY = 0;
+
+        header.addEventListener("mousedown", function (e) {
+            if (e.target.id === "jjopg-x" || e.target.closest("#jjopg-x")) return; // não arrasta clicando no X
+            const rect = panel.getBoundingClientRect();
+            // troca de "ancorado na direita" pra "ancorado em left/top" só no primeiro drag,
+            // senão o painel fica preso na borda direita mesmo movendo o mouse.
+            panel.style.left = rect.left + "px";
+            panel.style.top = rect.top + "px";
+            panel.style.right = "auto";
+            panel.style.bottom = "auto";
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+            dragging = true;
+            header.style.cursor = "grabbing";
+            e.preventDefault();
+        });
+
+        document.addEventListener("mousemove", function (e) {
+            if (!dragging) return;
+            const rect = panel.getBoundingClientRect();
+            let newLeft = e.clientX - offsetX;
+            let newTop = e.clientY - offsetY;
+            newLeft = Math.max(-rect.width + 60, Math.min(window.innerWidth - 60, newLeft));
+            newTop = Math.max(0, Math.min(window.innerHeight - 40, newTop));
+            panel.style.left = newLeft + "px";
+            panel.style.top = newTop + "px";
+        });
+
+        document.addEventListener("mouseup", function () {
+            if (!dragging) return;
+            dragging = false;
+            header.style.cursor = "grab";
+        });
+    })();
 
     // ---------------- helpers genéricos ----------------
     async function fetchText(url) {
