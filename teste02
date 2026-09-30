@@ -82,6 +82,25 @@ javascript:(function () {
             #jj-opgen ::-webkit-scrollbar{width:8px;height:8px;}
             #jj-opgen ::-webkit-scrollbar-track{background:#080603;}
             #jj-opgen ::-webkit-scrollbar-thumb{background:var(--g);border-radius:0;}
+            #jj-opgen .menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:2px;}
+            #jj-opgen .tile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:16px 6px;cursor:pointer;user-select:none;
+                border:1px solid rgba(240,180,41,.45);background:linear-gradient(180deg,rgba(240,180,41,.08) 0%,rgba(10,7,3,0) 55%),#0d0a05;
+                box-shadow:0 0 0 1px #000,inset 0 0 14px rgba(240,180,41,.06);transition:filter .12s;
+                clip-path:polygon(var(--cut) 0,calc(100% - var(--cut)) 0,100% var(--cut),100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,var(--cut) 100%,0 calc(100% - var(--cut)),0 var(--cut));}
+            #jj-opgen .tile:hover{filter:brightness(1.22);}
+            #jj-opgen .tile:before,#jj-opgen .tile:after{content:"";position:absolute;width:16px;height:16px;pointer-events:none;filter:drop-shadow(0 0 3px rgba(255,228,154,.8));}
+            #jj-opgen .tile:before{left:-3px;top:-3px;border-left:2px solid var(--gl);border-top:2px solid var(--gl);}
+            #jj-opgen .tile:after{right:-3px;bottom:-3px;border-right:2px solid var(--gl);border-bottom:2px solid var(--gl);}
+            #jj-opgen .tile-icon{font-size:23px;line-height:1;filter:drop-shadow(0 0 4px rgba(240,180,41,.5));}
+            #jj-opgen .tile-label{color:var(--g);font-weight:800;font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;text-align:center;text-shadow:0 0 6px rgba(240,180,41,.5);}
+            #jj-opgen .tile.full{grid-column:1/-1;flex-direction:row;padding:11px;}
+            #jj-opgen .page{display:none;}
+            #jj-opgen .page.active{display:block;}
+            #jj-opgen .pagehead{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+            #jj-opgen .back-btn{flex-shrink:0;cursor:pointer;padding:5px 11px;background:#0d0a05;color:var(--gl);border:1px solid var(--g);font-weight:800;font-size:12px;box-shadow:0 0 8px rgba(240,180,41,.3);
+                clip-path:polygon(5px 0,calc(100% - 5px) 0,100% 5px,100% calc(100% - 5px),calc(100% - 5px) 100%,5px 100%,0 calc(100% - 5px),0 5px);}
+            #jj-opgen .back-btn:hover{filter:brightness(1.2);}
+            #jj-opgen .pagetitle{color:var(--g);font-weight:800;font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;text-shadow:0 0 7px rgba(240,180,41,.5);}
         </style>
         <div id="jjopg-header" style="position:sticky;top:0;z-index:2;background:radial-gradient(ellipse at 50% -40%,rgba(240,180,41,.22),#0a0703 65%);border-bottom:2px solid var(--g);box-shadow:0 2px 14px rgba(240,180,41,.25);padding:12px 12px 10px;cursor:grab;user-select:none;">
             <span id="jjopg-x" style="position:absolute;top:8px;right:10px;z-index:5;cursor:pointer;color:var(--gl);font-size:12px;font-weight:800;padding:3px 8px;border:1px solid var(--g);background:#0d0a05;line-height:1;box-shadow:0 0 8px rgba(240,180,41,.4);pointer-events:auto;
@@ -93,8 +112,18 @@ javascript:(function () {
         </div>
         <div style="padding:9px 10px;">
 
-            <details id="sec1" open class="sec">
-                <summary>1️⃣ Importar Fulls + Semi-fulls da tribo</summary>
+            <div class="menu-grid" id="jjopg-menu">
+                <div class="tile" data-target="sec1"><span class="tile-icon">📥</span><span class="tile-label">Fulls</span></div>
+                <div class="tile" data-target="sec4"><span class="tile-icon">📍</span><span class="tile-label">Alvos</span></div>
+                <div class="tile" data-target="sec5"><span class="tile-icon">🎯</span><span class="tile-label">Distribuir</span></div>
+                <div class="tile" data-target="sec5b"><span class="tile-icon">🌓</span><span class="tile-label">Rodada 2</span></div>
+                <div class="tile" data-target="sec7"><span class="tile-icon">✉️</span><span class="tile-label">Mensagem</span></div>
+                <div class="tile" data-target="sec8"><span class="tile-icon">🗺️</span><span class="tile-label">Mapa</span></div>
+                <div class="tile full" data-target="sec9"><span class="tile-icon">📤</span><span class="tile-label">Exportar</span></div>
+            </div>
+
+            <div id="page-sec1" class="page sec">
+                <div class="pagehead"><button class="back-btn">←</button><span class="pagetitle">📥 Importar Fulls + Semi-fulls</span></div>
                 <div class="secbody">
                     <label class="l">TAG da minha tribo</label>
                     <input id="jjopg-tag" class="i mb" placeholder="Ex: HNK">
@@ -112,10 +141,10 @@ javascript:(function () {
                     <div id="jjopg-status" class="status"></div>
                     <div id="jjopg-results"></div>
                 </div>
-            </details>
+            </div>
 
-            <details id="sec4" class="sec">
-                <summary>2️⃣ Colar coordenadas com nome e visualizar no mapa</summary>
+            <div id="page-sec4" class="page sec">
+                <div class="pagehead"><button class="back-btn">←</button><span class="pagetitle">📍 Colar coordenadas com nome</span></div>
                 <div class="secbody">
                     <details class="help"><summary>Como escrever a lista</summary><p>Uma linha por jogador: nome + coordenadas. ":N" logo após o nome define quantos apoios cada coordenada da linha precisa (ex: "João:3 500|500 501|502" → todas precisam de 3). ":N" numa coordenada específica tem prioridade sobre o do nome. ":0" = não precisa de ajuda. Sem ":N" nenhum, usa o padrão da Etapa 3.</p></details>
                     <textarea id="jjopg-names" class="t mb" placeholder="João:3 500|500 501|502 502|503&#10;Maria:0 510|498 511|500&#10;Pedro:3 520|500:0 521|501" style="height:90px;"></textarea>
@@ -137,10 +166,10 @@ javascript:(function () {
 
                     <div id="jjopg-targets-box"></div>
                 </div>
-            </details>
+            </div>
 
-            <details id="sec5" class="sec">
-                <summary>3️⃣ Distribuir por quantidade disponível</summary>
+            <div id="page-sec5" class="page sec">
+                <div class="pagehead"><button class="back-btn">←</button><span class="pagetitle">🎯 Distribuir por quantidade</span></div>
                 <div class="secbody">
                     <details class="help"><summary>Como funciona</summary><p>Sem cálculo de distância/mapa — só aloca por quantidade disponível de cada jogador (na ordem que aparecem na caixinha do pool) até cobrir o pedido de cada alvo.</p></details>
 
@@ -160,10 +189,10 @@ javascript:(function () {
                     <div id="jjopg-dist-status" class="status"></div>
                     <div id="jjopg-dist-results"></div>
                 </div>
-            </details>
+            </div>
 
-            <details id="sec5b" class="sec">
-                <summary>3️⃣.2 Distribuir proporcionalmente (rodada 2)</summary>
+            <div id="page-sec5b" class="page sec">
+                <div class="pagehead"><button class="back-btn">←</button><span class="pagetitle">🌓 Distribuir proporcionalmente</span></div>
                 <div class="secbody">
                     <details class="help"><summary>Como funciona</summary><p>Caixinha própria e independente da de cima. Pega TODO o pool disponível e espalha igualzinho entre as coordenadas — 1 apoio pra cada, se sobrar dá 2 pra cada, e assim por diante. Não puxa nada automático.</p></details>
 
@@ -178,10 +207,10 @@ javascript:(function () {
                     <div id="jjopg-dist-status-2" class="status"></div>
                     <div id="jjopg-dist-results-2"></div>
                 </div>
-            </details>
+            </div>
 
-            <details id="sec7" class="sec">
-                <summary>4️⃣ Gerador de Mensagem da Operação</summary>
+            <div id="page-sec7" class="page sec">
+                <div class="pagehead"><button class="back-btn">←</button><span class="pagetitle">✉️ Mensagem da Operação</span></div>
                 <div class="secbody">
                     <details class="help"><summary>Como funciona</summary><p>Seção 100% manual — cole/edite as caixas abaixo com o plano final e clique em "GERAR MENSAGEM". Modelo padrão fixo — só data e horário mudam.</p></details>
                     <div class="row mb">
@@ -213,18 +242,18 @@ javascript:(function () {
                     <div id="jjopg-mp-ind-status" class="status"></div>
                     <div id="jjopg-mp-ind-results"></div>
                 </div>
-            </details>
+            </div>
 
-            <details id="sec8" class="sec">
-                <summary>5️⃣ Visualizar plano no mapa mundial</summary>
+            <div id="page-sec8" class="page sec">
+                <div class="pagehead"><button class="back-btn">←</button><span class="pagetitle">🗺️ Mapa mundial</span></div>
                 <div class="secbody">
                     <details class="help"><summary>Como funciona</summary><p>Abre o mapa mundial (com a diplomacia da tribo já carregada) e destaca por cima: 🎯 alvos NT em amarelo, 🎭 fakes em branco, 🎁 bônus em verde claro — lidos das caixas de NT/FAKES/BÔNUS da Etapa 4. Passe o mouse num alvo pra ver o nome.</p></details>
                     <button id="jjopg-showmap" class="b b1">🗺️ ABRIR MAPA MUNDIAL COM OS ALVOS</button>
                 </div>
-            </details>
+            </div>
 
-            <details id="sec9" class="sec" style="margin-bottom:2px;">
-                <summary>6️⃣ Exportar plano final</summary>
+            <div id="page-sec9" class="page sec" style="margin-bottom:2px;">
+                <div class="pagehead"><button class="back-btn">←</button><span class="pagetitle">📤 Exportar plano final</span></div>
                 <div class="secbody">
                     <div class="row mb">
                         <button id="jjopg-export-copy" class="b b1">📋 COPIAR TABELA</button>
@@ -232,7 +261,7 @@ javascript:(function () {
                     </div>
                     <div id="jjopg-export-status" class="status"></div>
                 </div>
-            </details>
+            </div>
 
             <div class="foot">Foco • Disciplina • Vitória</div>
         </div>
@@ -245,6 +274,26 @@ javascript:(function () {
         if (typeof stopCollectMode === "function") stopCollectMode(); // devolve o clique do mapa pro jogo
         panel.remove();
     };
+
+    // ---------------- navegação: menu de quadradinhos <-> páginas ----------------
+    (function enableNav() {
+        const menu = document.getElementById("jjopg-menu");
+        document.querySelectorAll("#jj-opgen .tile").forEach(function (tile) {
+            tile.onclick = function () {
+                const target = tile.getAttribute("data-target");
+                menu.style.display = "none";
+                document.querySelectorAll("#jj-opgen .page").forEach(function (p) { p.classList.remove("active"); });
+                const page = document.getElementById("page-" + target);
+                if (page) page.classList.add("active");
+            };
+        });
+        document.querySelectorAll("#jj-opgen .back-btn").forEach(function (btn) {
+            btn.onclick = function () {
+                document.querySelectorAll("#jj-opgen .page").forEach(function (p) { p.classList.remove("active"); });
+                menu.style.display = "grid";
+            };
+        });
+    })();
 
     // ---------------- arrastar o painel pelo cabeçalho ----------------
     (function enableDrag() {
