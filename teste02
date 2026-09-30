@@ -17,7 +17,7 @@ javascript:(function () {
         return;
     }
 
-    const gold = "#e8a934"; // dourado "command center" (mantém o nome "gold" pra não quebrar as strings dinâmicas que já usam essa variável)
+    const gold = "#f0b429"; // dourado "command center" (mantém o nome "gold" pra não quebrar as strings dinâmicas que já usam essa variável)
     const myVillageId = game_data.village.id;
 
     // ---------------- estado global do painel ----------------
@@ -31,68 +31,71 @@ javascript:(function () {
     panel.style.cssText = `
         position:fixed; z-index:999999; top:40px; right:8px;
         width:380px; max-width:94vw; max-height:90vh; overflow:auto; box-sizing:border-box;
-        background:linear-gradient(160deg,#141008 0%,#080603 55%,#120d05 100%);
-        border:1px solid rgba(232,169,52,.65); border-radius:6px;
-        clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 14px,100% calc(100% - 14px),calc(100% - 14px) 100%,14px 100%,0 calc(100% - 14px),0 14px);
-        color:#e9dcc0; font-family:-apple-system,BlinkMacSystemFont,Verdana,Arial;
-        box-shadow:0 0 0 1px rgba(0,0,0,.6), 0 0 26px rgba(232,169,52,.28), 0 16px 44px rgba(0,0,0,.85);
+        background:linear-gradient(160deg,#171106 0%,#0a0703 55%,#141005 100%);
+        border:2px solid #f0b429; border-radius:6px;
+        clip-path:polygon(18px 0,calc(100% - 18px) 0,100% 18px,100% calc(100% - 18px),calc(100% - 18px) 100%,18px 100%,0 calc(100% - 18px),0 18px);
+        color:#f3e6c6; font-family:-apple-system,BlinkMacSystemFont,Verdana,Arial;
+        box-shadow:0 0 0 1px #000, 0 0 0 4px rgba(240,180,41,.18), 0 0 36px rgba(240,180,41,.35), 0 16px 44px rgba(0,0,0,.85);
         font-size:11px;
     `;
     panel.innerHTML = `
         <style>
-            #jj-opgen{--g:${gold};--gl:#ffd873;--cut:8px;}
-            #jj-opgen ::selection{background:rgba(232,169,52,.35);}
-            #jj-opgen .sec{position:relative;border:1px solid rgba(232,169,52,.35);padding:8px 10px;margin-bottom:8px;
-                background:linear-gradient(180deg,rgba(232,169,52,.06) 0%,rgba(8,6,3,0) 45%),#0c0a06;
+            #jj-opgen{--g:#f0b429;--gl:#ffe49a;--cut:9px;}
+            #jj-opgen ::selection{background:rgba(240,180,41,.35);}
+            #jj-opgen .sec{position:relative;border:1px solid rgba(240,180,41,.45);padding:9px 11px 10px;margin:0 0 10px;
+                background:linear-gradient(180deg,rgba(240,180,41,.08) 0%,rgba(10,7,3,0) 50%),#0d0a05;
+                box-shadow:0 0 0 1px #000,inset 0 0 14px rgba(240,180,41,.06);
                 clip-path:polygon(var(--cut) 0,calc(100% - var(--cut)) 0,100% var(--cut),100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,var(--cut) 100%,0 calc(100% - var(--cut)),0 var(--cut));}
-            #jj-opgen .sec:before,#jj-opgen .sec:after{content:"";position:absolute;width:14px;height:14px;pointer-events:none;}
-            #jj-opgen .sec:before{left:-1px;top:-1px;border-left:2px solid var(--gl);border-top:2px solid var(--gl);}
-            #jj-opgen .sec:after{right:-1px;bottom:-1px;border-right:2px solid var(--gl);border-bottom:2px solid var(--gl);}
-            #jj-opgen summary{cursor:pointer;color:var(--g);font-weight:800;font-size:10.5px;list-style:none;padding:2px 0;text-transform:uppercase;letter-spacing:1px;text-shadow:0 0 8px rgba(232,169,52,.55);}
+            #jj-opgen .sec:before,#jj-opgen .sec:after{content:"";position:absolute;width:20px;height:20px;pointer-events:none;filter:drop-shadow(0 0 3px rgba(255,228,154,.8));}
+            #jj-opgen .sec:before{left:-4px;top:-4px;border-left:3px solid var(--gl);border-top:3px solid var(--gl);}
+            #jj-opgen .sec:after{right:-4px;bottom:-4px;border-right:3px solid var(--gl);border-bottom:3px solid var(--gl);}
+            #jj-opgen summary{cursor:pointer;color:var(--g);font-weight:800;font-size:10.5px;list-style:none;padding:2px 0;text-transform:uppercase;letter-spacing:1px;text-shadow:0 0 9px rgba(240,180,41,.7),0 0 2px rgba(0,0,0,.8);}
             #jj-opgen summary::-webkit-details-marker{display:none;}
-            #jj-opgen summary:before{content:"▸";display:inline-block;width:12px;color:var(--gl);text-shadow:0 0 6px rgba(255,216,115,.7);}
+            #jj-opgen summary:before{content:"▸";display:inline-block;width:12px;color:var(--gl);text-shadow:0 0 6px rgba(255,228,154,.8);}
             #jj-opgen details[open]>summary:before{content:"▾";}
             #jj-opgen .secbody{margin-top:8px;}
-            #jj-opgen label.l{display:block;color:#a68e5e;font-size:9px;margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px;}
-            #jj-opgen input.i,#jj-opgen textarea.t{width:100%;box-sizing:border-box;padding:6px 7px;background:#0a0805;color:#f0e6d2;border:1px solid rgba(232,169,52,.35);border-radius:2px;font-size:10.5px;}
-            #jj-opgen input.i:focus,#jj-opgen textarea.t:focus{outline:none;border-color:var(--gl);box-shadow:0 0 0 1px rgba(255,216,115,.25),0 0 10px rgba(232,169,52,.35);}
+            #jj-opgen label.l{display:block;color:#b99a5c;font-size:9px;margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px;}
+            #jj-opgen input.i,#jj-opgen textarea.t{width:100%;box-sizing:border-box;padding:6px 7px;background:#0a0805;color:#f7ecd2;border:1px solid rgba(240,180,41,.4);border-radius:2px;font-size:10.5px;}
+            #jj-opgen input.i:focus,#jj-opgen textarea.t:focus{outline:none;border-color:var(--gl);box-shadow:0 0 0 1px rgba(255,228,154,.3),0 0 10px rgba(240,180,41,.4);}
             #jj-opgen textarea.t{font-family:ui-monospace,Menlo,monospace;font-size:10px;resize:vertical;}
             #jj-opgen .mb{margin-bottom:6px;}
             #jj-opgen .row{display:flex;gap:6px;}
             #jj-opgen .row>*{flex:1;min-width:0;}
-            #jj-opgen .chk{display:flex;align-items:center;gap:6px;color:#a68e5e;font-size:10px;margin-bottom:6px;}
+            #jj-opgen .chk{display:flex;align-items:center;gap:6px;color:#b99a5c;font-size:10px;margin-bottom:6px;}
             #jj-opgen .chk input{accent-color:var(--g);}
-            #jj-opgen button.b{width:100%;box-sizing:border-box;padding:8px 7px;font-weight:800;font-size:10px;cursor:pointer;text-transform:uppercase;letter-spacing:.6px;transition:filter .12s,box-shadow .12s;
+            #jj-opgen button.b{width:100%;box-sizing:border-box;padding:8px 7px;font-weight:800;font-size:10px;cursor:pointer;text-transform:uppercase;letter-spacing:.6px;transition:filter .12s,box-shadow .12s;position:relative;
                 clip-path:polygon(7px 0,calc(100% - 7px) 0,100% 7px,100% calc(100% - 7px),calc(100% - 7px) 100%,7px 100%,0 calc(100% - 7px),0 7px);}
-            #jj-opgen button.b:hover{filter:brightness(1.18);}
-            #jj-opgen button.b1{background:linear-gradient(180deg,#3a2a0c,#1c1406);color:var(--gl);border:1px solid var(--g);box-shadow:0 0 12px rgba(232,169,52,.4),inset 0 0 10px rgba(232,169,52,.12);}
-            #jj-opgen button.b2{background:#0c0a06;color:#c9b071;border:1px solid rgba(232,169,52,.5);box-shadow:inset 0 0 8px rgba(232,169,52,.1);}
-            #jj-opgen button.b3{background:#150807;color:#e2694f;border:1px solid rgba(226,105,79,.55);box-shadow:inset 0 0 8px rgba(226,105,79,.12);}
-            #jj-opgen .status{color:#8a7a55;font-size:9.5px;line-height:14px;margin:5px 0;}
+            #jj-opgen button.b:hover{filter:brightness(1.22);}
+            #jj-opgen button.b1{background:linear-gradient(180deg,#4a3610,#1c1406);color:var(--gl);border:1px solid var(--g);box-shadow:0 0 14px rgba(240,180,41,.55),inset 0 0 10px rgba(240,180,41,.18);}
+            #jj-opgen button.b2{background:#0d0a05;color:#dcc17a;border:1px solid rgba(240,180,41,.55);box-shadow:inset 0 0 8px rgba(240,180,41,.12);}
+            #jj-opgen button.b3{background:#170807;color:#f07a5a;border:1px solid rgba(240,122,90,.6);box-shadow:inset 0 0 8px rgba(240,122,90,.15);}
+            #jj-opgen .status{color:#9a825a;font-size:9.5px;line-height:14px;margin:5px 0;}
             #jj-opgen details.help{margin-bottom:6px;}
-            #jj-opgen details.help>summary{color:#6e6247;font-weight:500;font-size:9px;text-transform:none;letter-spacing:0;text-shadow:none;}
-            #jj-opgen details.help>summary:before{content:"ℹ";color:var(--gl);text-shadow:0 0 4px rgba(255,216,115,.5);}
+            #jj-opgen details.help>summary{color:#786845;font-weight:500;font-size:9px;text-transform:none;letter-spacing:0;text-shadow:none;}
+            #jj-opgen details.help>summary:before{content:"ℹ";color:var(--gl);text-shadow:0 0 4px rgba(255,228,154,.6);}
             #jj-opgen details.help[open]>summary:before{content:"ℹ";}
-            #jj-opgen details.help p{color:#8a7a55;font-size:9.5px;line-height:13px;margin:4px 0 0;}
-            #jj-opgen hr.d{border:none;border-top:1px dashed rgba(232,169,52,.3);margin:8px 0;}
-            #jj-opgen .subhead{color:var(--gl);font-weight:800;font-size:9.5px;margin-bottom:3px;text-transform:uppercase;letter-spacing:.6px;text-shadow:0 0 6px rgba(232,169,52,.45);}
-            #jj-opgen .foot{text-align:center;color:#6e5c33;font-size:8.5px;letter-spacing:1.5px;text-transform:uppercase;padding:8px 4px 2px;}
+            #jj-opgen details.help p{color:#9a825a;font-size:9.5px;line-height:13px;margin:4px 0 0;}
+            #jj-opgen hr.d{border:none;border-top:1px dashed rgba(240,180,41,.35);margin:8px 0;}
+            #jj-opgen .subhead{color:var(--gl);font-weight:800;font-size:9.5px;margin-bottom:3px;text-transform:uppercase;letter-spacing:.6px;text-shadow:0 0 6px rgba(240,180,41,.5);}
+            #jj-opgen .foot{text-align:center;color:#8a734a;font-size:8.5px;letter-spacing:1.5px;text-transform:uppercase;padding:10px 4px 4px;border-top:1px dashed rgba(240,180,41,.3);margin-top:2px;}
             #jj-opgen ::-webkit-scrollbar{width:8px;height:8px;}
             #jj-opgen ::-webkit-scrollbar-track{background:#080603;}
             #jj-opgen ::-webkit-scrollbar-thumb{background:var(--g);border-radius:0;}
         </style>
-        <div style="position:sticky;top:0;z-index:2;background:radial-gradient(ellipse at 50% -30%,rgba(232,169,52,.16),rgba(8,6,3,.98) 65%);border-bottom:1px solid rgba(232,169,52,.5);padding:10px 10px 8px;">
-            <span id="jjopg-x" style="position:absolute;top:8px;right:10px;cursor:pointer;color:${gold};font-size:12px;padding:3px 7px;border:1px solid rgba(232,169,52,.55);background:#0c0a06;line-height:1;
+        <div style="position:sticky;top:0;z-index:2;background:radial-gradient(ellipse at 50% -40%,rgba(240,180,41,.22),#0a0703 65%);border-bottom:2px solid var(--g);box-shadow:0 2px 14px rgba(240,180,41,.25);padding:12px 12px 10px;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;width:46px;height:46px;background:repeating-linear-gradient(45deg,rgba(240,180,41,.5) 0 6px,transparent 6px 12px);clip-path:polygon(0 0,100% 0,0 100%);opacity:.35;"></div>
+            <div style="position:absolute;top:0;right:0;width:46px;height:46px;background:repeating-linear-gradient(-45deg,rgba(240,180,41,.5) 0 6px,transparent 6px 12px);clip-path:polygon(100% 0,100% 100%,0 0);opacity:.35;"></div>
+            <span id="jjopg-x" style="position:absolute;top:8px;right:10px;cursor:pointer;color:var(--gl);font-size:12px;font-weight:800;padding:3px 8px;border:1px solid var(--g);background:#0d0a05;line-height:1;box-shadow:0 0 8px rgba(240,180,41,.4);
                 clip-path:polygon(5px 0,calc(100% - 5px) 0,100% 5px,100% calc(100% - 5px),calc(100% - 5px) 100%,5px 100%,0 calc(100% - 5px),0 5px);">✕</span>
-            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
-                <div style="width:38px;height:38px;border-radius:50%;border:2px solid ${gold};box-shadow:0 0 10px rgba(232,169,52,.55),inset 0 0 8px rgba(232,169,52,.25);display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#1c1406,#0a0805 75%);">
-                    <span style="font-weight:800;color:${gold};font-size:13px;text-shadow:0 0 6px rgba(232,169,52,.7);">OP</span>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;position:relative;">
+                <div style="width:42px;height:42px;border-radius:50%;border:2px solid var(--g);box-shadow:0 0 12px rgba(240,180,41,.65),inset 0 0 10px rgba(240,180,41,.3);display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#241a08,#0a0703 75%);">
+                    <span style="font-weight:800;color:var(--gl);font-size:14px;text-shadow:0 0 8px rgba(240,180,41,.9);">OP</span>
                 </div>
-                <div style="font-weight:800;color:${gold};font-size:12.5px;text-transform:uppercase;letter-spacing:1.5px;text-shadow:0 0 8px rgba(232,169,52,.6),0 0 2px #fff;">⚔️ Gerador de OP</div>
-                <div style="color:#8a7a55;font-size:8px;letter-spacing:2px;text-transform:uppercase;">— Painel de Operações —</div>
+                <div style="font-weight:800;color:var(--g);font-size:13px;text-transform:uppercase;letter-spacing:1.8px;text-shadow:0 0 10px rgba(240,180,41,.75),0 0 2px #fff;">⚔️ Gerador de OP</div>
+                <div style="color:var(--gl);font-size:8.5px;letter-spacing:2.5px;text-transform:uppercase;opacity:.85;">— Painel de Operações —</div>
             </div>
         </div>
-        <div style="padding:8px 9px;">
+        <div style="padding:9px 10px;">
 
             <details id="sec1" open class="sec">
                 <summary>1️⃣ Importar Fulls + Semi-fulls da tribo</summary>
